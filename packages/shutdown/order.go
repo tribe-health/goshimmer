@@ -4,6 +4,7 @@ const (
 	PriorityDatabase = iota
 	PriorityFPC
 	PriorityTangle
+	PriorityWaspConn
 	PriorityMissingMessagesMonitoring
 	PriorityRemoteLog
 	PriorityAnalysis
