@@ -33,6 +33,8 @@ func configPlugin(_ *node.Plugin) {
 	EventValueTransactionReceived = events.NewEvent(func(handler interface{}, params ...interface{}) {
 		handler.(func(_ *transaction.Transaction))(params[0].(*transaction.Transaction))
 	})
+
+	addEndpoints()
 }
 
 func runPlugin(_ *node.Plugin) {
