@@ -24,7 +24,6 @@ func (wconn *WaspConnector) processMsgDataFromWasp(data []byte) {
 		wconn.postTransaction(msgt.Tx)
 
 	case *waspconn.WaspToNodeSubscribeMsg:
-		//wconn.log.Debugf("WaspToNodeSubscribeMsg: %+v", msgt.Addresses)
 		for _, addr := range msgt.Addresses {
 			wconn.subscribe(&addr)
 		}

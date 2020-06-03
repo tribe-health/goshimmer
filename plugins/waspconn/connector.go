@@ -111,6 +111,7 @@ func (wconn *WaspConnector) detach() {
 func (wconn *WaspConnector) subscribe(addr *address.Address) {
 	_, ok := wconn.subscriptions[*addr]
 	if !ok {
+		wconn.log.Debugf("subscribed to address: %s", addr.String())
 		wconn.subscriptions[*addr] = 0
 	}
 }
@@ -139,6 +140,7 @@ func (wconn *WaspConnector) processTransactionFromNode(tx *transaction.Transacti
 		return
 	}
 	// for each subscribed address retrieve outputs and send to wasp with the transaction
+	wconn.log.Debugf("txid %s contains %d subscribed addresses", tx.ID().String(), len(subscribedOutAddresses))
 
 	for i := range subscribedOutAddresses {
 		outs := utxodb.GetAddressOutputs(subscribedOutAddresses[i])
