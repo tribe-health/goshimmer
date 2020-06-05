@@ -23,9 +23,7 @@ func handleGetAddressOutputs(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, &apilib.GetAccountOutputsResponse{Err: err.Error()})
 	}
 	outputs := utxodb.GetAddressOutputs(addr)
-	if err != nil {
-		return c.JSON(http.StatusBadRequest, &apilib.GetAccountOutputsResponse{Err: err.Error()})
-	}
+
 	out := make(map[string][]apilib.OutputBalance)
 	for txOutId, txOutputs := range outputs {
 		txOut := make([]apilib.OutputBalance, len(txOutputs))
@@ -37,10 +35,10 @@ func handleGetAddressOutputs(c echo.Context) error {
 		}
 		out[txOutId.String()] = txOut
 	}
-	return c.JSON(http.StatusOK, &apilib.GetAccountOutputsResponse{
+	return c.JSONPretty(http.StatusOK, &apilib.GetAccountOutputsResponse{
 		Address: c.Param("address"),
 		Outputs: out,
-	})
+	}, " ")
 }
 
 func handlePostTransaction(c echo.Context) error {
