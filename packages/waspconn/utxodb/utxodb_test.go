@@ -2,7 +2,7 @@ package utxodb
 
 import (
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
-	"github.com/magiconair/properties/assert"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -27,7 +27,7 @@ func TestGenesis(t *testing.T) {
 		assert.Equal(t, err, nil)
 		total += sum
 	}
-	assert.Equal(t, total, supply-(int64(len(knownAddresses))-1)*ownerAmount)
+	assert.Equal(t, total, supply-(int64(len(sigSchemes))-1)*ownerAmount)
 	checkLedgerBalance()
 }
 
