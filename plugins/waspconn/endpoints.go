@@ -1,6 +1,7 @@
 package waspconn
 
 import (
+	"github.com/iotaledger/hive.go/events"
 	"net/http"
 
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
@@ -15,6 +16,10 @@ import (
 func addEndpoints() {
 	webapi.Server.GET("/utxodb/outputs/:address", handleGetAddressOutputs)
 	webapi.Server.POST("/utxodb/tx", handlePostTransaction)
+
+	EventValueTransactionReceived.Attach(events.NewClosure(func(tx *transaction.Transaction) {
+		log.Debugf("EventValueTransactionReceived: txid = %s", tx.ID().String())
+	}))
 }
 
 func handleGetAddressOutputs(c echo.Context) error {
