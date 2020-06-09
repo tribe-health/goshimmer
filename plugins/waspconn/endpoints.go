@@ -1,13 +1,16 @@
 package waspconn
 
 import (
-	"github.com/iotaledger/hive.go/events"
+	"fmt"
 	"net/http"
+
+	"github.com/iotaledger/hive.go/events"
 
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/packages/waspconn/apilib"
 	"github.com/iotaledger/goshimmer/packages/waspconn/utxodb"
+	"github.com/iotaledger/goshimmer/plugins/gracefulshutdown"
 	"github.com/iotaledger/goshimmer/plugins/webapi"
 	"github.com/labstack/echo"
 	"github.com/mr-tron/base58"
@@ -16,6 +19,7 @@ import (
 func addEndpoints() {
 	webapi.Server.GET("/utxodb/outputs/:address", handleGetAddressOutputs)
 	webapi.Server.POST("/utxodb/tx", handlePostTransaction)
+	webapi.Server.GET("/adm/shutdown", handleShutdown)
 
 	EventValueTransactionReceived.Attach(events.NewClosure(func(tx *transaction.Transaction) {
 		log.Debugf("EventValueTransactionReceived: txid = %s", tx.ID().String())
@@ -70,4 +74,9 @@ func handlePostTransaction(c echo.Context) error {
 	EventValueTransactionReceived.Trigger(tx)
 
 	return c.JSON(http.StatusOK, &apilib.PostTransactionResponse{})
+}
+
+func handleShutdown(c echo.Context) error {
+	gracefulshutdown.ShutdownWithError(fmt.Errorf("Shutdown requested from WebAPI."))
+	return nil
 }
