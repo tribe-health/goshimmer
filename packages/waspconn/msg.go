@@ -145,6 +145,12 @@ func DecodeMsg(data []byte, waspSide bool) (interface{}, error) {
 		}
 		ret = &WaspToNodeGetOutputsMsg{}
 
+	case waspToNodeSetId:
+		if waspSide {
+			return nil, fmt.Errorf("wrong message")
+		}
+		ret = &WaspToNodeSetIdMsg{}
+
 	case waspFromNodeTransaction:
 		if !waspSide {
 			return nil, fmt.Errorf("wrong message")

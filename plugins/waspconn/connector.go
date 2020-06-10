@@ -66,6 +66,7 @@ func (wconn *WaspConnector) Id() string {
 func (wconn *WaspConnector) SetId(id string) {
 	wconn.id = id
 	wconn.log = wconn.log.Named(id)
+	wconn.log.Infof("wasp connection id has been set to '%s' for '%s'", id, wconn.bconn.RemoteAddr().String())
 }
 
 func (wconn *WaspConnector) attach() {
