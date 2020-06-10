@@ -30,12 +30,11 @@ type WaspConnector struct {
 
 func Run(conn net.Conn, log *logger.Logger) {
 	wconn := &WaspConnector{
-		id:           "wasp_" + conn.RemoteAddr().String(),
 		bconn:        buffconn.NewBufferedConnection(conn),
 		exitConnChan: make(chan struct{}),
-		log:          log.Named(conn.RemoteAddr().String()),
+		log:          log,
 	}
-	err := daemon.BackgroundWorker(wconn.id, func(shutdownSignal <-chan struct{}) {
+	err := daemon.BackgroundWorker(wconn.Id(), func(shutdownSignal <-chan struct{}) {
 		select {
 		case <-shutdownSignal:
 			wconn.log.Infof("shutdown signal received")
@@ -55,6 +54,18 @@ func Run(conn net.Conn, log *logger.Logger) {
 		return
 	}
 	wconn.attach()
+}
+
+func (wconn *WaspConnector) Id() string {
+	if wconn.id == "" {
+		return "wasp_" + wconn.bconn.RemoteAddr().String()
+	}
+	return wconn.id
+}
+
+func (wconn *WaspConnector) SetId(id string) {
+	wconn.id = id
+	wconn.log = wconn.log.Named(id)
 }
 
 func (wconn *WaspConnector) attach() {

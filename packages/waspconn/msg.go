@@ -17,6 +17,7 @@ const (
 	waspToNodeSubscribe
 	waspToNodeGetTransaction
 	waspToNodeGetOutputs
+	waspToNodeSetId
 
 	// node -> wasp
 	waspFromNodeTransaction
@@ -44,6 +45,10 @@ type WaspToNodeGetTransactionMsg struct {
 
 type WaspToNodeGetOutputsMsg struct {
 	Address address.Address
+}
+
+type WaspToNodeSetIdMsg struct {
+	Waspid string
 }
 
 type WaspFromNodeTransactionMsg struct {
@@ -77,6 +82,9 @@ func typeToCode(msg interface{ Write(writer io.Writer) error }) byte {
 
 	case *WaspToNodeGetOutputsMsg:
 		return waspToNodeGetOutputs
+
+	case *WaspToNodeSetIdMsg:
+		return waspToNodeSetId
 
 	case *WaspFromNodeTransactionMsg:
 		return waspFromNodeTransaction
@@ -253,6 +261,16 @@ func (msg *WaspToNodeGetOutputsMsg) Write(w io.Writer) error {
 
 func (msg *WaspToNodeGetOutputsMsg) Read(r io.Reader) error {
 	return ReadAddress(r, &msg.Address)
+}
+
+func (msg *WaspToNodeSetIdMsg) Write(w io.Writer) error {
+	return WriteString(w, msg.Waspid)
+}
+
+func (msg *WaspToNodeSetIdMsg) Read(r io.Reader) error {
+	var err error
+	msg.Waspid, err = ReadString(r)
+	return err
 }
 
 func (msg *WaspFromNodeTransactionMsg) Write(w io.Writer) error {

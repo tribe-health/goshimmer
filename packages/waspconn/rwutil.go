@@ -149,6 +149,18 @@ func ReadBytes16(r io.Reader) ([]byte, error) {
 	return nil, nil
 }
 
+func WriteString(w io.Writer, s string) error {
+	return WriteBytes16(w, []byte(s))
+}
+
+func ReadString(r io.Reader) (string, error) {
+	ret, err := ReadBytes16(r)
+	if err != nil {
+		return "", err
+	}
+	return string(ret), nil
+}
+
 func WriteBytes32(w io.Writer, data []byte) error {
 	err := WriteUint32(w, uint32(len(data)))
 	if err != nil {

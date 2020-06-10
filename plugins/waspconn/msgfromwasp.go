@@ -34,6 +34,9 @@ func (wconn *WaspConnector) processMsgDataFromWasp(data []byte) {
 	case *waspconn.WaspToNodeGetOutputsMsg:
 		wconn.getAddressBalance(&msgt.Address)
 
+	case *waspconn.WaspToNodeSetIdMsg:
+		wconn.SetId(msgt.Waspid)
+
 	default:
 		panic("wrong msg type")
 	}
