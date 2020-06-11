@@ -27,6 +27,11 @@ func (wconn *WaspConnector) processMsgDataFromWasp(data []byte) {
 		for _, addr := range msgt.Addresses {
 			wconn.subscribe(&addr)
 		}
+		go func() {
+			for _, addr := range msgt.Addresses {
+				wconn.pushBacklogToWasp(&addr)
+			}
+		}()
 
 	case *waspconn.WaspToNodeGetTransactionMsg:
 		wconn.getTransaction(msgt.TxId)

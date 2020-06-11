@@ -35,8 +35,7 @@ type WaspToNodeTransactionMsg struct {
 }
 
 type WaspToNodeSubscribeMsg struct {
-	Addresses   []address.Address
-	PullBacklog bool
+	Addresses []address.Address
 }
 
 type WaspToNodeGetTransactionMsg struct {
@@ -223,7 +222,7 @@ func (msg *WaspToNodeSubscribeMsg) Write(w io.Writer) error {
 			return err
 		}
 	}
-	return WriteBoolByte(w, msg.PullBacklog)
+	return nil
 }
 
 func (msg *WaspToNodeSubscribeMsg) Read(r io.Reader) error {
@@ -236,9 +235,6 @@ func (msg *WaspToNodeSubscribeMsg) Read(r io.Reader) error {
 		if err := ReadAddress(r, &msg.Addresses[i]); err != nil {
 			return err
 		}
-	}
-	if err := ReadBoolByte(r, &msg.PullBacklog); err != nil {
-		return err
 	}
 	return nil
 }

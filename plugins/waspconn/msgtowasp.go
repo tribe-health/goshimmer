@@ -5,6 +5,7 @@ import (
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/packages/waspconn"
+	"github.com/iotaledger/goshimmer/packages/waspconn/utxodb"
 	"io"
 )
 
@@ -34,4 +35,37 @@ func (wconn *WaspConnector) sendAddressOutputsToWasp(address *address.Address, b
 		Address:  *address,
 		Balances: balances,
 	})
+}
+
+// query outputs database and collects transactions containing unprocessed requests
+func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
+	outs := utxodb.GetAddressOutputs(*addr)
+	if len(outs) == 0 {
+		return
+	}
+	outputs := waspconn.OutputsToBalances(outs)
+	allColors := make(map[transaction.ID]bool)
+	for _, bals := range outputs {
+		for _, b := range bals {
+			col := b.Color()
+			if col == balance.ColorIOTA {
+				continue
+			}
+			if col == balance.ColorNew {
+				panic("unexpected balance.ColorNew")
+			}
+
+			allColors[(transaction.ID)(b.Color())] = true
+		}
+	}
+	for txid := range allColors {
+		tx, ok := utxodb.GetTransaction(txid)
+		if !ok {
+			wconn.log.Errorf("inconsistency: can't find txid = %s", txid.String())
+			continue
+		}
+		if err := wconn.sendAddressUpdateToWasp(addr, outputs, tx); err != nil {
+			wconn.log.Debug(err)
+		}
+	}
 }
