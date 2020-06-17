@@ -8,7 +8,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "webpack-dev-server --mode development --hot --progress --colors --host 192.168.1.215 --port 9090 --open",
     "build": "webpack -p --progress --colors",
-    "prettier": "prettier --write \"src/**/*.{ts,tsx,css}\""
+    "prettier": "prettier --write \"src/**/*.{ts,tsx,css}\"",
+    "lint": "eslint src --ext .tsx,.ts"
   },
   "license": "MIT",
   "devDependencies": {
@@ -19,8 +20,12 @@
     "@types/react-dom": "^16.0.11",
     "@types/react-router": "^5.1.7",
     "@types/webpack": "^4.4.23",
+    "@typescript-eslint/eslint-plugin": "^3.2.0",
+    "@typescript-eslint/parser": "^3.2.0",
     "babel-loader": "^8.0.5",
     "css-loader": "^3.6.0",
+    "eslint": "^7.2.0",
+    "eslint-plugin-react": "^7.20.0",
     "file-loader": "^6.0.0",
     "html-loader": "^1.0.0-alpha.0",
     "html-webpack-plugin": "^4.3.0",
