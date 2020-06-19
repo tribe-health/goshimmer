@@ -7,8 +7,7 @@ import (
 )
 
 const (
-	routeFindByID    = "message/findById"
-	routeSendPayload = "message/sendPayload"
+	routeFindByID = "message/findById"
 )
 
 // FindMessageByID finds messages by the given base58 encoded IDs. The messages are returned in the same order as
@@ -26,15 +25,4 @@ func (api *GoShimmerAPI) FindMessageByID(base58EncodedIDs []string) (*webapi_mes
 	}
 
 	return res, nil
-}
-
-func (api *GoShimmerAPI) SendPayload(payload []byte) (string, error) {
-
-	res := &webapi_message.MessageResponse{}
-	if err := api.do(http.MethodPost, routeSendPayload,
-		&webapi_message.MessageRequest{Payload: payload}, res); err != nil {
-		return "", err
-	}
-
-	return res.ID, nil
 }
