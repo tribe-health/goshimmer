@@ -1,9 +1,5 @@
 package framework
 
-import (
-	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/wallet"
-)
-
 const (
 	autopeeringMaxTries = 50
 
@@ -25,16 +21,6 @@ const (
 	dkgMaxTries = 50
 
 	exitStatusSuccessful = 0
-)
-
-// Parameters to override before calling any peer creation function.
-var (
-	// ParaFCoBAverageNetworkDelay defines the configured avg. network delay (in seconds) for the FCOB rules.
-	ParaFCoBAverageNetworkDelay = 5
-	// ParaOutboundUpdateIntervalMs the autopeering outbound update interval in milliseconds.
-	ParaOutboundUpdateIntervalMs = 100
-	// ParaBootstrapOnEveryNode whether to enable the bootstrap plugin on every node.
-	ParaBootstrapOnEveryNode = false
 )
 
 var (
@@ -60,8 +46,6 @@ type GoShimmerConfig struct {
 	DRNGThreshold int
 
 	Faucet bool
-
-	Wallet *wallet.Wallet
 }
 
 // NetworkConfig defines the config of a GoShimmer Docker network.
