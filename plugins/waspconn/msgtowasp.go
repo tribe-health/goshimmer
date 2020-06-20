@@ -20,6 +20,9 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 		_, err = wconn.bconn.Write(data)
 		return err
 	}
+
+	wconn.log.Debugf("+++++++++++++ %d bytes long message was split into %d chunks", len(data), len(choppedData))
+
 	// sending piece by piece wrapped in WaspMsgChunk
 	for _, piece := range choppedData {
 		dataToSend, err := waspconn.EncodeMsg(&waspconn.WaspMsgChunk{

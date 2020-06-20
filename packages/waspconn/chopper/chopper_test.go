@@ -27,19 +27,24 @@ func TestBasic(t *testing.T) {
 	choppedShort := ChopData(dataShort)
 	assert.Equal(t, 1, len(choppedShort))
 	assert.True(t, bytes.Equal(dataShort, choppedShort[0]))
+	assert.True(t, testLength(choppedShort))
 
 	choppedExact := ChopData(dataExact)
 	assert.Equal(t, 1, len(choppedExact))
 	assert.True(t, bytes.Equal(dataExact, choppedExact[0]))
+	assert.True(t, testLength(choppedExact))
 
 	choppedExact2 := ChopData(dataExact2)
 	assert.Equal(t, 3, len(choppedExact2))
+	assert.True(t, testLength(choppedExact2))
 
 	choppedLong := ChopData(dataLong)
 	assert.True(t, len(choppedLong) > 1)
+	assert.True(t, testLength(choppedLong))
 
 	choppedLong2 := ChopData(dataLong2)
 	assert.True(t, len(choppedLong2) > 1)
+	assert.True(t, testLength(choppedLong2))
 
 	for _, piece := range choppedExact2 {
 		ret, err := IncomingChunk(piece)
@@ -64,4 +69,13 @@ func TestBasic(t *testing.T) {
 			assert.True(t, bytes.Equal(dataLong2, ret))
 		}
 	}
+}
+
+func testLength(chopped [][]byte) bool {
+	for _, d := range chopped {
+		if len(d) > buffconn.MaxMessageSize {
+			return false
+		}
+	}
+	return true
 }

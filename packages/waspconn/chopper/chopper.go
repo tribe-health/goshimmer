@@ -12,8 +12,8 @@ import (
 
 const (
 	// for the final data packet to be not bigger than buffconn.MaxMessageSize
-	// 4 - chin id, 1 seq nr, 1 num chunks, 1 msg code
-	maxChunkSize = buffconn.MaxMessageSize - 4 - 1 - 1 - 1
+	// 4 - chin id, 1 seq nr, 1 num chunks, 1 msg code, 2 - data len
+	maxChunkSize = buffconn.MaxMessageSize - 4 - 1 - 1 - 1 - 2
 	maxTTL       = 5 * time.Minute
 )
 
