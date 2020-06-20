@@ -36,7 +36,7 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 			return err
 		}
 		if len(dataToSend) > buffconn.MaxMessageSize {
-			panic("sendMsgToWasp: internal inconsistency 2")
+			wconn.log.Panicf("sendMsgToWasp: internal inconsistency 3 size too big: %d", len(dataToSend))
 		}
 		_, err = wconn.bconn.Write(dataToSend)
 		if err != nil {

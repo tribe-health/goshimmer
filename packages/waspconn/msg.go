@@ -338,12 +338,12 @@ func (msg *WaspFromNodeAddressOutputsMsg) Write(w io.Writer) error {
 
 func (msg *WaspMsgChunk) Read(r io.Reader) error {
 	var err error
-	msg.Data, err = ReadBytes32(r)
+	msg.Data, err = ReadBytes16(r)
 	return err
 }
 
 func (msg *WaspMsgChunk) Write(w io.Writer) error {
-	return WriteBytes32(w, msg.Data)
+	return WriteBytes16(w, msg.Data)
 }
 
 func (msg *WaspFromNodeAddressOutputsMsg) Read(r io.Reader) error {

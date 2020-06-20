@@ -12,8 +12,8 @@ import (
 
 const (
 	// for the final data packet to be not bigger than buffconn.MaxMessageSize
-	// 4 - chin id, 1 seq nr, 1 num chunks, 1 msg code, 2 - data len
-	maxChunkSize = buffconn.MaxMessageSize - 4 - 1 - 1 - 1 - 2
+	// 4 - chunk id, 1 seq nr, 1 num chunks, 2 - data len, 1 msg code, 2 - data len2
+	maxChunkSize = buffconn.MaxMessageSize - 4 - 1 - 1 - 2 - 1 - 2
 	maxTTL       = 5 * time.Minute
 )
 
@@ -70,14 +70,14 @@ func ChopData(data []byte) ([][]byte, bool) {
 		return nil, false // no need to split
 	}
 	if len(data) > maxChunkSize*255 {
-		panic("too long data to chop")
+		panic("ChopData: too long data to chop")
 	}
 	numChunks := byte(len(data) / maxChunkSize)
 	if len(data)%maxChunkSize > 0 {
 		numChunks++
 	}
 	if numChunks < 2 {
-		panic("internal inconsistency 1")
+		panic("ChopData: internal inconsistency 1")
 	}
 	id := getNextMsgId()
 	ret := make([][]byte, 0, numChunks)
@@ -96,8 +96,8 @@ func ChopData(data []byte) ([][]byte, bool) {
 			data:        d,
 		}
 		dtmp := chunk.encode()
-		if len(dtmp) > buffconn.MaxMessageSize-1 {
-			panic("internal inconsistency 2")
+		if len(dtmp) > buffconn.MaxMessageSize-1-2 {
+			panic("ChopData: internal inconsistency 2")
 		}
 		ret = append(ret, dtmp)
 	}
