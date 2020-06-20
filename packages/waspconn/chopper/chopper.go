@@ -13,7 +13,7 @@ import (
 const (
 	// for the final data packet to be not bigger than buffconn.MaxMessageSize
 	// 4 - chunk id, 1 seq nr, 1 num chunks, 2 - data len, 1 msg code, 2 - data len2
-	maxChunkSize = buffconn.MaxMessageSize - 4 - 1 - 1 - 2 - 1 - 2
+	maxChunkSize = buffconn.MaxMessageSize - 4 - 1 - 1 - 2 - (1 + 2)
 	maxTTL       = 5 * time.Minute
 )
 
@@ -39,6 +39,10 @@ var (
 
 // garbage collector
 func init() {
+	if maxChunkSize+3 > buffconn.MaxMessageSize {
+		panic("maxChunkSize + 3 > buffconn.MaxMessageSize")
+	}
+
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
@@ -65,6 +69,8 @@ func getNextMsgId() uint32 {
 	return nextId
 }
 
+// ChopData chops data into pieces and adds header to each piece for IncomingChunk function to reassemble it
+// the size of each pieces is buffconn.MaxMessageSize - 3, for the header of the above protocol
 func ChopData(data []byte) ([][]byte, bool) {
 	if len(data) <= buffconn.MaxMessageSize {
 		return nil, false // no need to split
