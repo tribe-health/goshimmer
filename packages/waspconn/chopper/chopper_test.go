@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+const maxChunkSize = buffconn.MaxMessageSize - 3
+
 func TestBasic(t *testing.T) {
 	dataShort := make([]byte, 2000)
 	_, _ = rand.Read(dataShort)
@@ -27,34 +29,34 @@ func TestBasic(t *testing.T) {
 	dataExactPlus1 := make([]byte, buffconn.MaxMessageSize+1)
 	_, _ = rand.Read(dataExactPlus1)
 
-	_, ok := ChopData(dataShort)
+	_, ok := ChopData(dataShort, maxChunkSize)
 	assert.False(t, ok)
 
-	_, ok = ChopData(dataExact)
+	_, ok = ChopData(dataExact, maxChunkSize)
 	assert.False(t, ok)
 
-	choppedExact2, ok := ChopData(dataExact2)
+	choppedExact2, ok := ChopData(dataExact2, maxChunkSize)
 	assert.True(t, ok)
-	assert.Equal(t, 3, len(choppedExact2))
+	assert.Equal(t, 4, len(choppedExact2))
 	assert.True(t, testLength(choppedExact2))
 
-	choppedExactPlus1, ok := ChopData(dataExactPlus1)
+	choppedExactPlus1, ok := ChopData(dataExactPlus1, maxChunkSize)
 	assert.True(t, ok)
 	assert.Equal(t, 2, len(choppedExactPlus1))
 	assert.True(t, testLength(choppedExactPlus1))
 
-	choppedLong, ok := ChopData(dataLong)
+	choppedLong, ok := ChopData(dataLong, maxChunkSize)
 	assert.True(t, ok)
 	assert.True(t, len(choppedLong) > 1)
 	assert.True(t, testLength(choppedLong))
 
-	choppedLong2, ok := ChopData(dataLong2)
+	choppedLong2, ok := ChopData(dataLong2, maxChunkSize)
 	assert.True(t, ok)
 	assert.True(t, len(choppedLong2) > 1)
 	assert.True(t, testLength(choppedLong2))
 
 	for _, piece := range choppedExact2 {
-		ret, err := IncomingChunk(piece)
+		ret, err := IncomingChunk(piece, maxChunkSize)
 		assert.NoError(t, err)
 		if ret != nil {
 			assert.True(t, bytes.Equal(dataExact2, ret))
@@ -62,7 +64,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	for _, piece := range choppedLong {
-		ret, err := IncomingChunk(piece)
+		ret, err := IncomingChunk(piece, maxChunkSize)
 		assert.NoError(t, err)
 		if ret != nil {
 			assert.True(t, bytes.Equal(dataLong, ret))
@@ -70,7 +72,7 @@ func TestBasic(t *testing.T) {
 	}
 
 	for i := len(choppedLong2) - 1; i >= 0; i-- {
-		ret, err := IncomingChunk(choppedLong2[i])
+		ret, err := IncomingChunk(choppedLong2[i], maxChunkSize)
 		assert.NoError(t, err)
 		if ret != nil {
 			assert.True(t, bytes.Equal(dataLong2, ret))

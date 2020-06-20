@@ -26,6 +26,8 @@ const (
 	waspFromNodeAddressOutputs
 )
 
+const ChunkMessageHeaderSize = 3
+
 // special messages for big Data packets chopped into pieces
 type WaspMsgChunk struct {
 	Data []byte

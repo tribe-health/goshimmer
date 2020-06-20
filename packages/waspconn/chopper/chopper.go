@@ -12,9 +12,9 @@ import (
 
 const (
 	// for the final data packet to be not bigger than buffconn.MaxMessageSize
-	// 4 - chunk id, 1 seq nr, 1 num chunks, 2 - data len, 1 msg code, 2 - data len2
-	maxChunkSize = buffconn.MaxMessageSize - 4 - 1 - 1 - 2 - (1 + 2)
-	maxTTL       = 5 * time.Minute
+	// 4 - chunk id, 1 seq nr, 1 num chunks, 2 - data len
+	chunkHeaderSize = 4 + 1 + 1 + 2
+	maxTTL          = 5 * time.Minute
 )
 
 // special wrapper message for chunks of larger than buffer messages
@@ -39,10 +39,6 @@ var (
 
 // garbage collector
 func init() {
-	if maxChunkSize+3 > buffconn.MaxMessageSize {
-		panic("maxChunkSize + 3 > buffconn.MaxMessageSize")
-	}
-
 	go func() {
 		for {
 			time.Sleep(10 * time.Second)
@@ -71,15 +67,16 @@ func getNextMsgId() uint32 {
 
 // ChopData chops data into pieces and adds header to each piece for IncomingChunk function to reassemble it
 // the size of each pieces is buffconn.MaxMessageSize - 3, for the header of the above protocol
-func ChopData(data []byte) ([][]byte, bool) {
+func ChopData(data []byte, maxChunkSize uint16) ([][]byte, bool) {
+	maxSizeWithoutHeader := maxChunkSize - chunkHeaderSize
 	if len(data) <= buffconn.MaxMessageSize {
 		return nil, false // no need to split
 	}
-	if len(data) > maxChunkSize*255 {
+	if len(data) > int(maxChunkSize)*255 {
 		panic("ChopData: too long data to chop")
 	}
-	numChunks := byte(len(data) / maxChunkSize)
-	if len(data)%maxChunkSize > 0 {
+	numChunks := byte(len(data) / int(maxSizeWithoutHeader))
+	if len(data)%int(maxSizeWithoutHeader) > 0 {
 		numChunks++
 	}
 	if numChunks < 2 {
@@ -89,9 +86,9 @@ func ChopData(data []byte) ([][]byte, bool) {
 	ret := make([][]byte, 0, numChunks)
 	var d []byte
 	for i := byte(0); i < numChunks; i++ {
-		if len(data) > maxChunkSize {
-			d = data[:maxChunkSize]
-			data = data[maxChunkSize:]
+		if len(data) > int(maxSizeWithoutHeader) {
+			d = data[:maxSizeWithoutHeader]
+			data = data[maxSizeWithoutHeader:]
 		} else {
 			d = data
 		}
@@ -102,7 +99,7 @@ func ChopData(data []byte) ([][]byte, bool) {
 			data:        d,
 		}
 		dtmp := chunk.encode()
-		if len(dtmp) > buffconn.MaxMessageSize-1-2 {
+		if len(dtmp) > int(maxChunkSize) {
 			panic("ChopData: internal inconsistency 2")
 		}
 		ret = append(ret, dtmp)
@@ -110,20 +107,18 @@ func ChopData(data []byte) ([][]byte, bool) {
 	return ret, true
 }
 
-func IncomingChunk(data []byte) ([]byte, error) {
+func IncomingChunk(data []byte, maxChunkSize uint16) ([]byte, error) {
+	maxSizeWithoutHeader := maxChunkSize - chunkHeaderSize
 	msg := msgChunk{}
-	if err := msg.decode(data); err != nil {
+	if err := msg.decode(data, maxSizeWithoutHeader); err != nil {
 		return nil, err
 	}
 	switch {
-	case len(msg.data) > maxChunkSize:
+	case len(msg.data) > int(maxChunkSize):
 		return nil, fmt.Errorf("too long data chunk")
 
 	case msg.chunkSeqNum >= msg.numChunks:
 		return nil, fmt.Errorf("wrong incoming data chunk seq number")
-
-	case msg.chunkSeqNum < msg.numChunks-1 && len(msg.data) != maxChunkSize:
-		return nil, fmt.Errorf("wrong incoming data chunk size")
 	}
 
 	chopperMutex.Lock()
@@ -166,7 +161,7 @@ func (c *msgChunk) encode() []byte {
 	return buf.Bytes()
 }
 
-func (c *msgChunk) decode(data []byte) error {
+func (c *msgChunk) decode(data []byte, maxChunkSizeWithoutHeader uint16) error {
 	rdr := bytes.NewReader(data)
 	if err := waspconn.ReadUint32(rdr, &c.msgId); err != nil {
 		return err
@@ -185,7 +180,7 @@ func (c *msgChunk) decode(data []byte) error {
 	if c.chunkSeqNum >= c.numChunks {
 		return fmt.Errorf("wrong data chunk format")
 	}
-	if len(c.data) != maxChunkSize && c.chunkSeqNum != c.numChunks-1 {
+	if len(c.data) != int(maxChunkSizeWithoutHeader) && c.chunkSeqNum != c.numChunks-1 {
 		return fmt.Errorf("wrong data chunk length")
 	}
 	return nil

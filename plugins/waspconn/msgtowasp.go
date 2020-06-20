@@ -16,7 +16,7 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 	if err != nil {
 		return err
 	}
-	choppedData, chopped := chopper.ChopData(data)
+	choppedData, chopped := chopper.ChopData(data, buffconn.MaxMessageSize-waspconn.ChunkMessageHeaderSize)
 	if !chopped {
 		if len(data) > buffconn.MaxMessageSize {
 			panic("sendMsgToWasp: internal inconsistency 1")
