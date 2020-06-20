@@ -5,6 +5,7 @@ import (
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/packages/waspconn"
+	"github.com/iotaledger/goshimmer/packages/waspconn/chopper"
 	"github.com/iotaledger/goshimmer/packages/waspconn/utxodb"
 	"io"
 )
@@ -14,8 +15,25 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 	if err != nil {
 		return err
 	}
-	_, err = wconn.bconn.Write(data)
-	return err
+	choppedData := chopper.ChopData(data)
+	if len(choppedData) == 1 {
+		_, err = wconn.bconn.Write(data)
+		return err
+	}
+	// sending piece by piece wrapped in WaspMsgChunk
+	for _, piece := range choppedData {
+		dataToSend, err := waspconn.EncodeMsg(&waspconn.WaspMsgChunk{
+			Data: piece,
+		})
+		if err != nil {
+			return err
+		}
+		_, err = wconn.bconn.Write(dataToSend)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (wconn *WaspConnector) sendTransactionToWasp(vtx *transaction.Transaction) error {

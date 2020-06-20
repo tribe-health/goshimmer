@@ -70,6 +70,21 @@ func WriteUint64(w io.Writer, val uint64) error {
 	return err
 }
 
+func ReadByte(r io.Reader, pb *byte) error {
+	var tmp [1]byte
+	_, err := r.Read(tmp[:])
+	if err != nil {
+		return err
+	}
+	*pb = tmp[0]
+	return nil
+}
+
+func WriteByte(w io.Writer, val byte) error {
+	_, err := w.Write([]byte{val})
+	return err
+}
+
 func ReadUint64(r io.Reader, pval *uint64) error {
 	var tmp8 [8]byte
 	_, err := r.Read(tmp8[:])
@@ -120,7 +135,7 @@ const MaxUint16 = int(^uint16(0))
 
 func WriteBytes16(w io.Writer, data []byte) error {
 	if len(data) > MaxUint16 {
-		panic("WriteBytes16: too long data")
+		panic("WriteBytes16: too long Data")
 	}
 	err := WriteUint16(w, uint16(len(data)))
 	if err != nil {

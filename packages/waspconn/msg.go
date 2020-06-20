@@ -11,6 +11,7 @@ import (
 
 const (
 	waspPing = iota
+	waspMsgChunk
 
 	// wasp -> node
 	waspToNodeTransaction
@@ -24,6 +25,11 @@ const (
 	waspFromNodeAddressUpdate
 	waspFromNodeAddressOutputs
 )
+
+// special messages for big Data packets chopped into pieces
+type WaspMsgChunk struct {
+	Data []byte
+}
 
 type WaspPingMsg struct {
 	Id        uint32
@@ -70,6 +76,9 @@ func typeToCode(msg interface{ Write(writer io.Writer) error }) byte {
 	case *WaspPingMsg:
 		return waspPing
 
+	case *WaspMsgChunk:
+		return waspMsgChunk
+
 	case *WaspToNodeTransactionMsg:
 		return waspToNodeTransaction
 
@@ -107,7 +116,8 @@ func EncodeMsg(msg interface{ Write(writer io.Writer) error }) ([]byte, error) {
 	if err := msg.Write(&buf); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	ret := buf.Bytes()
+	return ret, nil
 }
 
 func DecodeMsg(data []byte, waspSide bool) (interface{}, error) {
@@ -119,6 +129,9 @@ func DecodeMsg(data []byte, waspSide bool) (interface{}, error) {
 	switch data[0] {
 	case waspPing:
 		ret = &WaspPingMsg{}
+
+	case waspMsgChunk:
+		ret = &WaspMsgChunk{}
 
 	case waspToNodeTransaction:
 		if waspSide {
@@ -321,6 +334,16 @@ func (msg *WaspFromNodeAddressOutputsMsg) Write(w io.Writer) error {
 		return err
 	}
 	return WriteBalances(w, msg.Balances)
+}
+
+func (msg *WaspMsgChunk) Read(r io.Reader) error {
+	var err error
+	msg.Data, err = ReadBytes32(r)
+	return err
+}
+
+func (msg *WaspMsgChunk) Write(w io.Writer) error {
+	return WriteBytes32(w, msg.Data)
 }
 
 func (msg *WaspFromNodeAddressOutputsMsg) Read(r io.Reader) error {
