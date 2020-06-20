@@ -7,6 +7,7 @@ import (
 	"github.com/iotaledger/goshimmer/packages/waspconn"
 	"github.com/iotaledger/goshimmer/packages/waspconn/chopper"
 	"github.com/iotaledger/goshimmer/packages/waspconn/utxodb"
+	"github.com/iotaledger/hive.go/netutil/buffconn"
 	"io"
 )
 
@@ -17,6 +18,9 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 	}
 	choppedData, chopped := chopper.ChopData(data)
 	if !chopped {
+		if len(data) > buffconn.MaxMessageSize {
+			panic("sendMsgToWasp: internal inconsistency 1")
+		}
 		_, err = wconn.bconn.Write(data)
 		return err
 	}
@@ -30,6 +34,9 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 		})
 		if err != nil {
 			return err
+		}
+		if len(dataToSend) > buffconn.MaxMessageSize {
+			panic("sendMsgToWasp: internal inconsistency 2")
 		}
 		_, err = wconn.bconn.Write(dataToSend)
 		if err != nil {

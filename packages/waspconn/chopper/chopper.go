@@ -77,7 +77,7 @@ func ChopData(data []byte) ([][]byte, bool) {
 		numChunks++
 	}
 	if numChunks < 2 {
-		panic("internal inconsistency")
+		panic("internal inconsistency 1")
 	}
 	id := getNextMsgId()
 	ret := make([][]byte, 0, numChunks)
@@ -95,7 +95,11 @@ func ChopData(data []byte) ([][]byte, bool) {
 			numChunks:   numChunks,
 			data:        d,
 		}
-		ret = append(ret, chunk.encode())
+		dtmp := chunk.encode()
+		if len(dtmp) > buffconn.MaxMessageSize-1 {
+			panic("internal inconsistency 2")
+		}
+		ret = append(ret, dtmp)
 	}
 	return ret, true
 }
