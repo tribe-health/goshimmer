@@ -2,7 +2,6 @@ package waspconn
 
 import (
 	"github.com/iotaledger/goshimmer/packages/waspconn"
-	"github.com/iotaledger/goshimmer/packages/waspconn/chopper"
 )
 
 // process messages received from the Wasp
@@ -15,14 +14,7 @@ func (wconn *WaspConnector) processMsgDataFromWasp(data []byte) {
 	}
 	switch msgt := msg.(type) {
 	case *waspconn.WaspMsgChunk:
-		finalData, err := chopper.IncomingChunk(msgt.Data)
-		if err != nil {
-			wconn.log.Errorf("received message chunk: %v", err)
-		} else {
-			if finalData != nil {
-				wconn.processMsgDataFromWasp(finalData)
-			}
-		}
+		wconn.log.Errorf("unexpected message chunk from Wasp")
 
 	case *waspconn.WaspPingMsg:
 		wconn.log.Debugf("PING %d received", msgt.Id)
