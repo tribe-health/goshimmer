@@ -24,25 +24,32 @@ func TestBasic(t *testing.T) {
 	dataExact2 := make([]byte, 3*maxChunkSize)
 	_, _ = rand.Read(dataExact2)
 
-	choppedShort := ChopData(dataShort)
-	assert.Equal(t, 1, len(choppedShort))
-	assert.True(t, bytes.Equal(dataShort, choppedShort[0]))
-	assert.True(t, testLength(choppedShort))
+	dataExactPlus1 := make([]byte, buffconn.MaxMessageSize+1)
+	_, _ = rand.Read(dataExactPlus1)
 
-	choppedExact := ChopData(dataExact)
-	assert.Equal(t, 1, len(choppedExact))
-	assert.True(t, bytes.Equal(dataExact, choppedExact[0]))
-	assert.True(t, testLength(choppedExact))
+	_, ok := ChopData(dataShort)
+	assert.False(t, ok)
 
-	choppedExact2 := ChopData(dataExact2)
+	_, ok = ChopData(dataExact)
+	assert.False(t, ok)
+
+	choppedExact2, ok := ChopData(dataExact2)
+	assert.True(t, ok)
 	assert.Equal(t, 3, len(choppedExact2))
 	assert.True(t, testLength(choppedExact2))
 
-	choppedLong := ChopData(dataLong)
+	choppedExactPlus1, ok := ChopData(dataExactPlus1)
+	assert.True(t, ok)
+	assert.Equal(t, 2, len(choppedExactPlus1))
+	assert.True(t, testLength(choppedExactPlus1))
+
+	choppedLong, ok := ChopData(dataLong)
+	assert.True(t, ok)
 	assert.True(t, len(choppedLong) > 1)
 	assert.True(t, testLength(choppedLong))
 
-	choppedLong2 := ChopData(dataLong2)
+	choppedLong2, ok := ChopData(dataLong2)
+	assert.True(t, ok)
 	assert.True(t, len(choppedLong2) > 1)
 	assert.True(t, testLength(choppedLong2))
 
@@ -62,7 +69,7 @@ func TestBasic(t *testing.T) {
 		}
 	}
 
-	for i := len(choppedLong) - 1; i >= 0; i-- {
+	for i := len(choppedLong2) - 1; i >= 0; i-- {
 		ret, err := IncomingChunk(choppedLong2[i])
 		assert.NoError(t, err)
 		if ret != nil {

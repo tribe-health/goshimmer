@@ -15,8 +15,8 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 	if err != nil {
 		return err
 	}
-	choppedData := chopper.ChopData(data)
-	if len(choppedData) == 1 {
+	choppedData, chopped := chopper.ChopData(data)
+	if !chopped {
 		_, err = wconn.bconn.Write(data)
 		return err
 	}

@@ -65,9 +65,9 @@ func getNextMsgId() uint32 {
 	return nextId
 }
 
-func ChopData(data []byte) [][]byte {
+func ChopData(data []byte) ([][]byte, bool) {
 	if len(data) <= buffconn.MaxMessageSize {
-		return [][]byte{data} // no need to split
+		return nil, false // no need to split
 	}
 	if len(data) > maxChunkSize*255 {
 		panic("too long data to chop")
@@ -77,7 +77,7 @@ func ChopData(data []byte) [][]byte {
 		numChunks++
 	}
 	if numChunks < 2 {
-		return [][]byte{data} // no need to split
+		panic("internal inconsistency")
 	}
 	id := getNextMsgId()
 	ret := make([][]byte, 0, numChunks)
@@ -97,7 +97,7 @@ func ChopData(data []byte) [][]byte {
 		}
 		ret = append(ret, chunk.encode())
 	}
-	return ret
+	return ret, true
 }
 
 func IncomingChunk(data []byte) ([]byte, error) {
