@@ -38,8 +38,8 @@ func handleGetAddressOutputs(c echo.Context) error {
 		txOut := make([]apilib.OutputBalance, len(txOutputs))
 		for i, txOutput := range txOutputs {
 			txOut[i] = apilib.OutputBalance{
-				Value: txOutput.Value(),
-				Color: transaction.ID(txOutput.Color()).String(),
+				Value: txOutput.Value,
+				Color: transaction.ID(txOutput.Color).String(),
 			}
 		}
 		out[txOutId.String()] = txOut

@@ -129,11 +129,11 @@ func getAddressOutputs(addr address.Address) map[transaction.OutputID][]*balance
 		// adjust to new_color
 		balsAdjusted := make([]*balance.Balance, len(bals.([]*balance.Balance)))
 		for i, bal := range bals.([]*balance.Balance) {
-			col := bal.Color()
+			col := bal.Color
 			if col == balance.ColorNew {
 				col = (balance.Color)(txInp.ID())
 			}
-			balsAdjusted[i] = balance.New(col, bal.Value())
+			balsAdjusted[i] = balance.New(col, bal.Value)
 		}
 		ret[transaction.NewOutputID(addr, txid)] = balsAdjusted
 	}
@@ -152,7 +152,7 @@ func getOutputTotal(outid transaction.OutputID) (int64, error) {
 	bals := btmp.([]*balance.Balance)
 	sum := int64(0)
 	for _, b := range bals {
-		sum += b.Value()
+		sum += b.Value
 	}
 	return sum, nil
 }

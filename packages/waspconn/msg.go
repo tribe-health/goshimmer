@@ -372,10 +372,10 @@ func WriteBalances(w io.Writer, balances map[transaction.ID][]*balance.Balance) 
 			return err
 		}
 		for _, b := range bals {
-			if _, err := w.Write(b.Color().Bytes()); err != nil {
+			if _, err := w.Write(b.Color[:]); err != nil {
 				return err
 			}
-			if err := WriteUint64(w, uint64(b.Value())); err != nil {
+			if err := WriteUint64(w, uint64(b.Value)); err != nil {
 				return err
 			}
 		}

@@ -75,7 +75,7 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 	allColors := make(map[transaction.ID]bool)
 	for _, bals := range outputs {
 		for _, b := range bals {
-			col := b.Color()
+			col := b.Color
 			if col == balance.ColorIOTA {
 				continue
 			}
@@ -83,7 +83,7 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 				panic("unexpected balance.ColorNew")
 			}
 
-			allColors[(transaction.ID)(b.Color())] = true
+			allColors[(transaction.ID)(b.Color)] = true
 		}
 	}
 	for txid := range allColors {

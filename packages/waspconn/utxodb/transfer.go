@@ -16,8 +16,8 @@ func DistributeIotas(amountEach int64, source address.Address, targets []address
 	for oid, bals := range sourceOutputs {
 		containsIotas := false
 		for _, b := range bals {
-			if b.Color() == balance.ColorIOTA {
-				sum += b.Value()
+			if b.Color == balance.ColorIOTA {
+				sum += b.Value
 				containsIotas = true
 			}
 		}

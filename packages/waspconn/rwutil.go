@@ -240,10 +240,10 @@ func ValidateBalances(outs map[transaction.ID][]*balance.Balance) error {
 			return errors.New("ValidateBalances: wrong txid")
 		}
 		for _, b := range bals {
-			if b.Color() == balance.ColorNew {
+			if b.Color == balance.ColorNew {
 				return errors.New("ValidateBalances: can't be ColorNew")
 			}
-			if b.Value() <= 0 {
+			if b.Value <= 0 {
 				return errors.New("ValidateBalances: can't be non-positive value")
 			}
 		}
