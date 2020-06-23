@@ -17,6 +17,8 @@ var (
 )
 
 func AddTransaction(tx *transaction.Transaction) error {
+	//fmt.Printf("[utxodb] AddTransaction::\n%s\n", tx.String())
+
 	if err := CheckInputsOutputs(tx); err != nil {
 		return fmt.Errorf("%v: txid %s", err, tx.ID().String())
 	}
@@ -45,6 +47,7 @@ func AddTransaction(tx *transaction.Transaction) error {
 		return fmt.Errorf("invalid or conflicting inputs: '%v' txid %s", err, tx.ID().String())
 	}
 
+	// add outputs to utxo ledger
 	// delete inputs from utxo ledger
 	tx.Inputs().ForEach(func(outputId transaction.OutputID) bool {
 		delete(utxo, outputId)
@@ -60,15 +63,15 @@ func AddTransaction(tx *transaction.Transaction) error {
 		}
 		return true
 	})
-	// add outputs to utxo ledger
-	tx.Outputs().ForEach(func(address address.Address, balances []*balance.Balance) bool {
-		utxo[transaction.NewOutputID(address, tx.ID())] = true
-		lst, ok := utxoByAddress[address]
+
+	tx.Outputs().ForEach(func(addr address.Address, bals []*balance.Balance) bool {
+		utxo[transaction.NewOutputID(addr, tx.ID())] = true
+		lst, ok := utxoByAddress[addr]
 		if !ok {
 			lst = make([]transaction.ID, 0)
 		}
 		lst = append(lst, tx.ID())
-		utxoByAddress[address] = lst
+		utxoByAddress[addr] = lst
 		return true
 	})
 	transactions[tx.ID()] = tx

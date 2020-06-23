@@ -27,11 +27,13 @@ func addEndpoints() {
 }
 
 func handleGetAddressOutputs(c echo.Context) error {
+	log.Debugw("handleGetAddressOutputs")
 	addr, err := address.FromBase58(c.Param("address"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, &apilib.GetAccountOutputsResponse{Err: err.Error()})
 	}
 	outputs := utxodb.GetAddressOutputs(addr)
+	log.Debugf("handleGetAddressOutputs: addr %s from utxodb %+v", addr.String(), outputs)
 
 	out := make(map[string][]apilib.OutputBalance)
 	for txOutId, txOutputs := range outputs {
@@ -44,6 +46,8 @@ func handleGetAddressOutputs(c echo.Context) error {
 		}
 		out[txOutId.String()] = txOut
 	}
+	log.Debugw("handleGetAddressOutputs", "sending", out)
+
 	return c.JSONPretty(http.StatusOK, &apilib.GetAccountOutputsResponse{
 		Address: c.Param("address"),
 		Outputs: out,
@@ -65,6 +69,8 @@ func handlePostTransaction(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, &apilib.PostTransactionResponse{Err: err.Error()})
 	}
+
+	log.Debugf("handlePostTransaction:utxodb.AddTransaction: txid %s", tx.ID().String())
 
 	err = utxodb.AddTransaction(tx)
 	if err != nil {
