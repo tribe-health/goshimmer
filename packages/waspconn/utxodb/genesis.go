@@ -25,6 +25,20 @@ var (
 )
 
 func init() {
+	Init()
+
+	stats := GetLedgerStats()
+	fmt.Printf("UTXODB initialized:\nSeed: %s\nTotal supply = %di\nGenesis + %d predefined addresses with %di each\n",
+		seedStr, supply, len(sigSchemes)-1, ownerAmount)
+
+	fmt.Println("Balances:")
+	for i, sigScheme := range sigSchemes {
+		addr := sigScheme.Address()
+		fmt.Printf("#%d: %s: balance %d, num outputs %d\n", i, addr.String(), stats[addr].Total, stats[addr].NumOutputs)
+	}
+}
+
+func Init() {
 	seedBin, err := base58.Decode(seedStr)
 	if err != nil {
 		panic(err)
@@ -65,16 +79,6 @@ func init() {
 	}
 	if err = AddTransaction(tx); err != nil {
 		panic(err)
-	}
-
-	stats := GetLedgerStats()
-	fmt.Printf("UTXODB initialized:\nSeed: %s\nTotal supply = %di\nGenesis + %d predefined addresses with %di each\n",
-		seedStr, supply, len(sigSchemes)-1, ownerAmount)
-
-	fmt.Println("Balances:")
-	for i, sigScheme := range sigSchemes {
-		addr := sigScheme.Address()
-		fmt.Printf("#%d: %s: balance %d, num outputs %d\n", i, addr.String(), stats[addr].Total, stats[addr].NumOutputs)
 	}
 }
 
