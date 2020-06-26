@@ -10,11 +10,35 @@ import (
 )
 
 var (
-	transactions  = make(map[transaction.ID]*transaction.Transaction)
-	utxo          = make(map[transaction.OutputID]bool)
-	utxoByAddress = make(map[address.Address][]transaction.ID)
-	mutexdb       sync.RWMutex
+	transactions  map[transaction.ID]*transaction.Transaction
+	utxo          map[transaction.OutputID]bool
+	utxoByAddress map[address.Address][]transaction.ID
+	mutexdb       *sync.RWMutex
 )
+
+func init() {
+	Init()
+
+	stats := GetLedgerStats()
+	fmt.Printf("UTXODB initialized:\nSeed: %s\nTotal supply = %di\nGenesis + %d predefined addresses with %di each\n",
+		seedStr, supply, len(sigSchemes)-1, ownerAmount)
+
+	fmt.Println("Balances:")
+	for i, sigScheme := range sigSchemes {
+		addr := sigScheme.Address()
+		fmt.Printf("#%d: %s: balance %d, num outputs %d\n", i, addr.String(), stats[addr].Total, stats[addr].NumOutputs)
+	}
+
+}
+
+func Init() {
+	transactions = make(map[transaction.ID]*transaction.Transaction)
+	utxo = make(map[transaction.OutputID]bool)
+	utxoByAddress = make(map[address.Address][]transaction.ID)
+	mutexdb = &sync.RWMutex{}
+
+	genesisInit()
+}
 
 func AddTransaction(tx *transaction.Transaction) error {
 	//fmt.Printf("[utxodb] AddTransaction::\n%s\n", tx.String())
