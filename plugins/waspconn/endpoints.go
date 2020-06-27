@@ -74,6 +74,7 @@ func handlePostTransaction(c echo.Context) error {
 
 	err = utxodb.AddTransaction(tx)
 	if err != nil {
+		log.Warnf("handlePostTransaction:utxodb.AddTransaction: txid %s", tx.ID().String())
 		return c.JSON(http.StatusConflict, &apilib.PostTransactionResponse{Err: err.Error()})
 	}
 

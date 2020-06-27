@@ -202,7 +202,7 @@ func (wconn *WaspConnector) getAddressBalance(addr *address.Address) {
 // TODO it is a testing implementation. In real situation transaction would be submitted to the value tangle
 func (wconn *WaspConnector) postTransaction(tx *transaction.Transaction) {
 	if err := utxodb.AddTransaction(tx); err != nil {
-		wconn.log.Debugf("!!!! utxodb.AddTransaction %s : %v", tx.ID().String(), err)
+		wconn.log.Warnf("!!!! utxodb.AddTransaction %s : %v", tx.ID().String(), err)
 		return
 	}
 	wconn.log.Debugf("++++ Added transaction  %s", tx.ID().String())
