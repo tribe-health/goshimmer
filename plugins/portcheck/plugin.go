@@ -75,7 +75,7 @@ func checkAutopeeringConnection() {
 			log.Infof("Pong received from %s", randEntryNode.IP())
 			break
 		}
-		log.Warnf("Error pinging entry node %s (attempts left %d): %s", randEntryNode.IP(), retryCount-i-1, retryCount, err)
+		log.Warnf("Error pinging entry node %s (attempts left %d): %s", randEntryNode.IP(), retryCount-i-1, err)
 	}
 
 	if err != nil {
