@@ -66,7 +66,7 @@ func checkAutopeeringConnection() {
 
 	disc.Start(srv)
 	defer disc.Close()
-	
+
 	const retryCount = 10
 	entryNodes := autopeering.Discovery().GetMasterPeers()
 	for i := 0; i < retryCount; i++ {
@@ -75,7 +75,7 @@ func checkAutopeeringConnection() {
 			log.Infof("Pong received from %s", randEntryNode.IP())
 			break
 		}
-		log.Warnf("Error pinging entry node %s (attempts left %d/%d): %s", randEntryNode.IP(), retryCount-i+1, retryCount, err)
+		log.Warnf("Error pinging entry node %s (attempts left %d): %s", randEntryNode.IP(), retryCount-i-1, retryCount, err)
 	}
 
 	if err != nil {
