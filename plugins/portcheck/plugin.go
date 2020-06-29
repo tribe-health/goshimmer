@@ -1,6 +1,7 @@
 package portcheck
 
 import (
+	"math/rand"
 	"net"
 	"sync"
 
@@ -65,14 +66,16 @@ func checkAutopeeringConnection() {
 
 	disc.Start(srv)
 	defer disc.Close()
-
-	for _, master := range autopeering.Discovery().GetMasterPeers() {
-		err = disc.Ping(master)
-		if err == nil {
-			log.Infof("Pong received from %s", master.IP())
+	
+	const retryCount = 10
+	entryNodes := autopeering.Discovery().GetMasterPeers()
+	for i := 0; i < retryCount; i++ {
+		randEntryNode := entryNodes[rand.Intn(len(entryNodes))]
+		if err = disc.Ping(randEntryNode); err == nil {
+			log.Infof("Pong received from %s", randEntryNode.IP())
 			break
 		}
-		log.Warnf("Error pinging entry node %s: %s", master.IP(), err)
+		log.Warnf("Error pinging entry node %s (attempts left %d/%d): %s", randEntryNode.IP(), retryCount-i+1, retryCount, err)
 	}
 
 	if err != nil {
