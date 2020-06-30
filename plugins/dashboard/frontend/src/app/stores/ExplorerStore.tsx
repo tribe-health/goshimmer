@@ -1,14 +1,19 @@
 import {action, computed, observable} from 'mobx';
 import {registerHandler, WSMsgType} from "app/misc/WS";
-import {PayloadType, DrngSubtype} from "app/misc/Payload";
-import {BasicPayload, DrngPayload, DrngCbPayload, ValuePayload} from "app/misc/Payload";
+import {BasicPayload, DrngCbPayload, DrngPayload, DrngSubtype, PayloadType, ValuePayload} from "app/misc/Payload";
 import * as React from "react";
 import {Link} from 'react-router-dom';
 import {RouterStore} from "mobx-react-router";
 
+export const GenesisMessageID = "1111111111111111111111111111111111111111111111111111111111111111";
+
 export class Message {
     id: string;
-    timestamp: number;
+    solidification_timestamp: number;
+    issuance_timestamp: number;
+    sequence_number: number;
+    issuer_public_key: string;
+    signature: string;
     trunk_message_id: string;
     branch_message_id: string;
     solid: boolean;
@@ -17,8 +22,29 @@ export class Message {
 }
 
 class AddressResult {
-    balance: number;
-    messages: Array<Message>;
+    address: string;
+    output_ids: Array<Output>;
+}
+
+class Output {
+    id: string;
+    balances: Array<Balance>;
+    inclusion_state: InclusionState;
+    consumer_count: number;
+    solidification_time: number;
+}
+
+class Balance {
+    value: number;
+    color: string;
+}
+
+class InclusionState {
+	liked: boolean;
+	rejected: boolean;
+	finalized: boolean;
+	conflicting: boolean;
+	confirmed: boolean;
 }
 
 class SearchResult {
@@ -33,7 +59,7 @@ class MessageRef {
 const liveFeedSize = 10;
 
 enum QueryError {
-    NotFound
+    NotFound = 1
 }
 
 export class ExplorerStore {
@@ -142,9 +168,6 @@ export class ExplorerStore {
 
     @action
     updateAddress = (addr: AddressResult) => {
-        addr.messages = addr.messages.sort((a, b) => {
-            return a.timestamp < b.timestamp ? 1 : -1;
-        });
         this.addr = addr;
         this.query_err = null;
         this.query_loading = false;
@@ -155,7 +178,7 @@ export class ExplorerStore {
         this.msg = msg;
         this.query_err = null;
         this.query_loading = false;
-        switch(msg.payload_type){
+        switch (msg.payload_type) {
             case PayloadType.Drng:
                 this.payload = msg.payload as DrngPayload
                 if (this.payload.subpayload_type == DrngSubtype.Cb) {
@@ -167,6 +190,7 @@ export class ExplorerStore {
             case PayloadType.Value:
                 this.payload = msg.payload as ValuePayload
             case PayloadType.Data:
+            case PayloadType.Faucet:
             default:
                 this.payload = msg.payload as BasicPayload
                 break;

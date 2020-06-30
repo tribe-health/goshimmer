@@ -1,14 +1,27 @@
 package payload
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/iotaledger/hive.go/marshalutil"
+)
+
+var (
+	// ErrMaximumPayloadSizeExceeded is returned if the payload exceeds the maximum size.
+	ErrMaximumPayloadSizeExceeded = errors.New("maximum payload size exceeded")
+)
+
+const (
+	// ObjectName defines the name of the data object.
+	ObjectName = "data"
 )
 
 func init() {
 	// register the generic unmarshaler
 	SetGenericUnmarshalerFactory(GenericPayloadUnmarshalerFactory)
 	// register the generic data payload type
-	RegisterType(DataType, GenericPayloadUnmarshalerFactory(DataType))
+	RegisterType(DataType, ObjectName, GenericPayloadUnmarshalerFactory(DataType))
 }
 
 // Payload represents some kind of payload of data which only gains meaning by having
@@ -37,6 +50,11 @@ func FromBytes(bytes []byte) (result Payload, consumedBytes int, err error) {
 
 	payloadSize, err := marshalUtil.ReadUint32()
 	if err != nil {
+		return
+	}
+
+	if payloadSize > MaxDataPayloadSize {
+		err = fmt.Errorf("%w: %d", ErrMaximumPayloadSizeExceeded, MaxDataPayloadSize)
 		return
 	}
 

@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/iotaledger/hive.go/logger"
 	"github.com/iotaledger/hive.go/node"
 	"github.com/iotaledger/hive.go/types"
-	"github.com/pkg/errors"
 	flag "github.com/spf13/pflag"
 	"go.uber.org/atomic"
 )
@@ -39,6 +39,12 @@ const (
 	// CfgSyncDesyncedIfNoMessageAfterSec defines the time period in which new messages must be received and if not
 	// the node is marked as desynced.
 	CfgSyncDesyncedIfNoMessageAfterSec = "sync.desyncedIfNoMessagesAfterSec"
+
+	// defines the max. divergence a potential new anchor point's issuance time can have
+	// from the current issuance threshold. say the current threshold is at 1000, the boundary at 10,
+	// we allow a new potential anchor point's issuance time to be within >=990 / 10 seconds older
+	// than the current threshold.
+	issuanceThresholdBeforeTimeBoundary = 20 * time.Second
 )
 
 func init() {
@@ -49,8 +55,9 @@ func init() {
 }
 
 var (
-	// Plugin is the plugin instance of the sync plugin.
-	Plugin = node.NewPlugin(PluginName, node.Enabled, configure, run)
+	// plugin is the plugin instance of the sync plugin.
+	plugin *node.Plugin
+	once   sync.Once
 	// ErrNodeNotSynchronized is returned when an operation can't be executed because
 	// the node is not synchronized.
 	ErrNodeNotSynchronized = errors.New("node is not synchronized")
@@ -58,6 +65,14 @@ var (
 	synced atomic.Bool
 	log    *logger.Logger
 )
+
+// Plugin gets the plugin instance.
+func Plugin() *node.Plugin {
+	once.Do(func() {
+		plugin = node.NewPlugin(PluginName, node.Enabled, configure, run)
+	})
+	return plugin
+}
 
 // Synced tells whether the node is in a state we consider synchronized, meaning
 // it has the relevant past and present message data.
@@ -133,11 +148,11 @@ func monitorForDesynchronization() {
 	if err := daemon.BackgroundWorker("Desync-Monitor", func(shutdownSignal <-chan struct{}) {
 		gossip.Manager().Events().NeighborRemoved.Attach(monitorPeerCountClosure)
 		defer gossip.Manager().Events().NeighborRemoved.Detach(monitorPeerCountClosure)
-		messagelayer.Tangle.Events.MessageAttached.Attach(monitorMessageInflowClosure)
-		defer messagelayer.Tangle.Events.MessageAttached.Detach(monitorMessageInflowClosure)
+		messagelayer.Tangle().Events.MessageAttached.Attach(monitorMessageInflowClosure)
+		defer messagelayer.Tangle().Events.MessageAttached.Detach(monitorMessageInflowClosure)
 
-		desyncedIfNoMessageInSec := config.Node.GetDuration(CfgSyncDesyncedIfNoMessageAfterSec) * time.Second
-		timer := time.NewTimer(desyncedIfNoMessageInSec)
+		timeForDesync := config.Node().GetDuration(CfgSyncDesyncedIfNoMessageAfterSec) * time.Second
+		timer := time.NewTimer(timeForDesync)
 		for {
 			select {
 
@@ -147,10 +162,10 @@ func monitorForDesynchronization() {
 					<-timer.C
 				}
 				// TODO: perhaps find a better way instead of constantly resetting the timer
-				timer.Reset(desyncedIfNoMessageInSec)
+				timer.Reset(timeForDesync)
 
 			case <-timer.C:
-				log.Infof("no message received in %d seconds, marking node as desynced", int(desyncedIfNoMessageInSec.Seconds()))
+				log.Infof("no message received in %d seconds, marking node as desynced", int(timeForDesync.Seconds()))
 				markDesynced()
 				return
 
@@ -171,7 +186,7 @@ func monitorForDesynchronization() {
 // starts a background worker and event handlers to check whether the node is synchronized by first collecting
 // a set of newly received messages and then waiting for them to become solid.
 func monitorForSynchronization() {
-	wantedAnchorPointsCount := config.Node.GetInt(CfgSyncAnchorPointsCount)
+	wantedAnchorPointsCount := config.Node().GetInt(CfgSyncAnchorPointsCount)
 	anchorPoints := newAnchorPoints(wantedAnchorPointsCount)
 	log.Infof("monitoring for synchronization, awaiting %d anchor point messages to become solid", wantedAnchorPointsCount)
 
@@ -203,13 +218,13 @@ func monitorForSynchronization() {
 	})
 
 	if err := daemon.BackgroundWorker("Sync-Monitor", func(shutdownSignal <-chan struct{}) {
-		messagelayer.Tangle.Events.MessageAttached.Attach(initAnchorPointClosure)
-		defer messagelayer.Tangle.Events.MessageAttached.Detach(initAnchorPointClosure)
-		messagelayer.Tangle.Events.MessageSolid.Attach(checkAnchorPointSolidityClosure)
-		defer messagelayer.Tangle.Events.MessageSolid.Detach(checkAnchorPointSolidityClosure)
+		messagelayer.Tangle().Events.MessageAttached.Attach(initAnchorPointClosure)
+		defer messagelayer.Tangle().Events.MessageAttached.Detach(initAnchorPointClosure)
+		messagelayer.Tangle().Events.MessageSolid.Attach(checkAnchorPointSolidityClosure)
+		defer messagelayer.Tangle().Events.MessageSolid.Detach(checkAnchorPointSolidityClosure)
 
-		cleanupDelta := config.Node.GetDuration(CfgSyncAnchorPointsCleanupAfterSec) * time.Second
-		ticker := time.NewTimer(config.Node.GetDuration(CfgSyncAnchorPointsCleanupIntervalSec) * time.Second)
+		cleanupDelta := config.Node().GetDuration(CfgSyncAnchorPointsCleanupAfterSec) * time.Second
+		ticker := time.NewTicker(config.Node().GetDuration(CfgSyncAnchorPointsCleanupIntervalSec) * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
@@ -254,9 +269,11 @@ func initAnchorPoint(anchorPoints *anchorpoints, msg *message.Message) *message.
 		return nil
 	}
 
-	// add a new anchor point
+	// add a new anchor point if its issuance time is newer than any other anchor point
 	id := msg.Id()
-	anchorPoints.add(id)
+	if !anchorPoints.add(id, msg.IssuingTime()) {
+		return nil
+	}
 	return &id
 }
 
@@ -303,11 +320,22 @@ type anchorpoints struct {
 	wanted int
 	// how many anchor points have been solidified.
 	solidified int
+	// holds the highest issuance time of any message which was an anchor point.
+	// this is used to determine whether further attached messages should become an
+	// anchor point by matching their issuance time against this time.
+	issuanceTimeThreshold time.Time
 }
 
-// adds the given message to the anchor points set.
-func (ap *anchorpoints) add(id message.Id) {
+// adds the given message to the anchor points set if its issuance time is newer than
+// any other existing anchor point's.
+func (ap *anchorpoints) add(id message.Id, issuanceTime time.Time) bool {
+	if !ap.issuanceTimeThreshold.IsZero() &&
+		ap.issuanceTimeThreshold.Add(-issuanceThresholdBeforeTimeBoundary).After(issuanceTime) {
+		return false
+	}
 	ap.ids[id] = time.Now()
+	ap.issuanceTimeThreshold = issuanceTime
+	return true
 }
 
 func (ap *anchorpoints) has(id message.Id) bool {

@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/iotaledger/goshimmer/plugins/autopeering/local"
-	"github.com/iotaledger/goshimmer/plugins/banner"
 	"github.com/iotaledger/goshimmer/plugins/config"
 	"github.com/iotaledger/hive.go/autopeering/discover"
 	"github.com/iotaledger/hive.go/autopeering/peer"
@@ -25,16 +24,13 @@ import (
 
 // autopeering constants
 const (
-	ProtocolVersion = 0      // update on protocol changes
-	NetworkVersion  = "v0.2" // update on network changes
+	ProtocolVersion = 0 // update on protocol changes
+	NetworkVersion  = 2 // update on network changes
 )
 
 var (
 	// ErrParsingMasterNode is returned for an invalid master node.
 	ErrParsingMasterNode = errors.New("cannot parse master node")
-
-	// NetworkID specifies the autopeering network identifier.
-	NetworkID = hash32([]byte(banner.AppVersion + NetworkVersion))
 
 	// Conn contains the network connection.
 	Conn *NetConnMetric
@@ -71,7 +67,7 @@ func Selection() *selection.Protocol {
 // BindAddress returns the string form of the autopeering bind address.
 func BindAddress() string {
 	peering := local.GetInstance().Services().Get(service.PeeringKey)
-	host := config.Node.GetString(local.CfgBind)
+	host := config.Node().GetString(local.CfgBind)
 	port := strconv.Itoa(peering.Port())
 	return net.JoinHostPort(host, port)
 }
@@ -97,7 +93,7 @@ func createPeerDisc() {
 	}
 	log.Debugf("Master peers: %v", masterPeers)
 
-	peerDisc = discover.New(local.GetInstance(), ProtocolVersion, NetworkID,
+	peerDisc = discover.New(local.GetInstance(), ProtocolVersion, NetworkVersion,
 		discover.Logger(log),
 		discover.MasterPeers(masterPeers),
 	)
@@ -177,7 +173,7 @@ func hash32(b []byte) uint32 {
 }
 
 func parseEntryNodes() (result []*peer.Peer, err error) {
-	for _, entryNodeDefinition := range config.Node.GetStringSlice(CfgEntryNodes) {
+	for _, entryNodeDefinition := range config.Node().GetStringSlice(CfgEntryNodes) {
 		if entryNodeDefinition == "" {
 			continue
 		}

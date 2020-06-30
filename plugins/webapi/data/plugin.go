@@ -1,7 +1,9 @@
 package data
 
 import (
+	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/payload"
 	"github.com/iotaledger/goshimmer/plugins/issuer"
@@ -15,14 +17,23 @@ import (
 const PluginName = "WebAPI data Endpoint"
 
 var (
-	// Plugin is the plugin instance of the web API data endpoint plugin.
-	Plugin = node.NewPlugin(PluginName, node.Enabled, configure)
+	// plugin is the plugin instance of the web API data endpoint plugin.
+	plugin *node.Plugin
+	once   sync.Once
 	log    *logger.Logger
 )
 
+// Plugin gets the plugin instance.
+func Plugin() *node.Plugin {
+	once.Do(func() {
+		plugin = node.NewPlugin(PluginName, node.Enabled, configure)
+	})
+	return plugin
+}
+
 func configure(plugin *node.Plugin) {
 	log = logger.NewLogger(PluginName)
-	webapi.Server.POST("data", broadcastData)
+	webapi.Server().POST("data", broadcastData)
 }
 
 // broadcastData creates a message of the given payload and
@@ -34,7 +45,12 @@ func broadcastData(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Response{Error: err.Error()})
 	}
 
-	//TODO: to check max payload size allowed, if exceeding return an error
+	dataPayload := payload.NewData(request.Data)
+	if len(dataPayload.Bytes()) > payload.MaxDataPayloadSize {
+		err := fmt.Errorf("%w: %d", payload.ErrMaximumPayloadSizeExceeded, payload.MaxDataPayloadSize)
+		return c.JSON(http.StatusBadRequest, Response{Error: err.Error()})
+	}
+
 	msg, err := issuer.IssuePayload(payload.NewData(request.Data))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, Response{Error: err.Error()})
