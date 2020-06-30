@@ -38,8 +38,8 @@ func configPlugin(_ *node.Plugin) {
 }
 
 func runPlugin(_ *node.Plugin) {
-	log.Debugf("starting WaspConn plugin on port %d", config.Node.GetInt(WaspConnPort))
-	port := config.Node.GetInt(WaspConnPort)
+	log.Debugf("starting WaspConn plugin on port %d", config.Node().GetInt(WaspConnPort))
+	port := config.Node().GetInt(WaspConnPort)
 	err := daemon.BackgroundWorker("WaspConn worker", func(shutdownSignal <-chan struct{}) {
 		listenOn := fmt.Sprintf(":%d", port)
 		listener, err := net.Listen("tcp", listenOn)

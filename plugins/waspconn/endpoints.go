@@ -17,9 +17,9 @@ import (
 )
 
 func addEndpoints() {
-	webapi.Server.GET("/utxodb/outputs/:address", handleGetAddressOutputs)
-	webapi.Server.POST("/utxodb/tx", handlePostTransaction)
-	webapi.Server.GET("/adm/shutdown", handleShutdown)
+	webapi.Server().GET("/utxodb/outputs/:address", handleGetAddressOutputs)
+	webapi.Server().POST("/utxodb/tx", handlePostTransaction)
+	webapi.Server().GET("/adm/shutdown", handleShutdown)
 
 	EventValueTransactionReceived.Attach(events.NewClosure(func(tx *transaction.Transaction) {
 		log.Debugf("EventValueTransactionReceived: txid = %s", tx.ID().String())
