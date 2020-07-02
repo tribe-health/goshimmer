@@ -10,21 +10,33 @@ import (
 	"github.com/iotaledger/hive.go/logger"
 	"github.com/iotaledger/hive.go/node"
 	"net"
+	"sync"
 )
 
 const (
-	name         = "WaspConn"
+	PluginName   = "WaspConn"
 	WaspConnPort = "waspconn.port"
 )
 
 var (
-	PLUGIN  = node.NewPlugin(name, node.Enabled, configPlugin, runPlugin)
-	PLUGINS = node.Plugins(PLUGIN)
-	log     *logger.Logger
+	app     *node.Plugin
+	appOnce sync.Once
+
+	PLUGINS = node.Plugins(
+		App(),
+	)
+	log *logger.Logger
 )
 
+func App() *node.Plugin {
+	appOnce.Do(func() {
+		app = node.NewPlugin(PluginName, node.Enabled, configPlugin, runPlugin)
+	})
+	return app
+}
+
 func configPlugin(_ *node.Plugin) {
-	log = logger.NewLogger(name)
+	log = logger.NewLogger(PluginName)
 
 	flag.Int(WaspConnPort, 5000, "port for Wasp connections")
 
