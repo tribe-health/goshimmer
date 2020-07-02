@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/iotaledger/goshimmer/plugins/waspconn"
+	"github.com/iotaledger/goshimmer/dapps/waspconn"
 	_ "net/http/pprof"
 
 	"github.com/iotaledger/goshimmer/pluginmgr/core"

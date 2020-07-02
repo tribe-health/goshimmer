@@ -4,7 +4,7 @@ package chopper
 import (
 	"bytes"
 	"fmt"
-	"github.com/iotaledger/goshimmer/packages/waspconn"
+	waspconn2 "github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 	"github.com/iotaledger/hive.go/netutil/buffconn"
 	"sync"
 	"time"
@@ -154,25 +154,25 @@ func IncomingChunk(data []byte, maxChunkSize uint16) ([]byte, error) {
 func (c *msgChunk) encode() []byte {
 	var buf bytes.Buffer
 
-	_ = waspconn.WriteUint32(&buf, c.msgId)
-	_ = waspconn.WriteByte(&buf, c.numChunks)
-	_ = waspconn.WriteByte(&buf, c.chunkSeqNum)
-	_ = waspconn.WriteBytes16(&buf, c.data)
+	_ = waspconn2.WriteUint32(&buf, c.msgId)
+	_ = waspconn2.WriteByte(&buf, c.numChunks)
+	_ = waspconn2.WriteByte(&buf, c.chunkSeqNum)
+	_ = waspconn2.WriteBytes16(&buf, c.data)
 	return buf.Bytes()
 }
 
 func (c *msgChunk) decode(data []byte, maxChunkSizeWithoutHeader uint16) error {
 	rdr := bytes.NewReader(data)
-	if err := waspconn.ReadUint32(rdr, &c.msgId); err != nil {
+	if err := waspconn2.ReadUint32(rdr, &c.msgId); err != nil {
 		return err
 	}
-	if err := waspconn.ReadByte(rdr, &c.numChunks); err != nil {
+	if err := waspconn2.ReadByte(rdr, &c.numChunks); err != nil {
 		return err
 	}
-	if err := waspconn.ReadByte(rdr, &c.chunkSeqNum); err != nil {
+	if err := waspconn2.ReadByte(rdr, &c.chunkSeqNum); err != nil {
 		return err
 	}
-	if data, err := waspconn.ReadBytes16(rdr); err != nil {
+	if data, err := waspconn2.ReadBytes16(rdr); err != nil {
 		return err
 	} else {
 		c.data = data

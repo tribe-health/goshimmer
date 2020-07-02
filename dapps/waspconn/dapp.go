@@ -3,11 +3,10 @@ package waspconn
 import (
 	"flag"
 	"fmt"
-	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/connector"
 	"github.com/iotaledger/goshimmer/packages/shutdown"
 	"github.com/iotaledger/goshimmer/plugins/config"
 	"github.com/iotaledger/hive.go/daemon"
-	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/logger"
 	"github.com/iotaledger/hive.go/node"
 	"net"
@@ -19,20 +18,15 @@ const (
 )
 
 var (
-	PLUGIN                        = node.NewPlugin(name, node.Enabled, configPlugin, runPlugin)
-	PLUGINS                       = node.Plugins(PLUGIN)
-	EventValueTransactionReceived *events.Event
-	log                           *logger.Logger
+	PLUGIN  = node.NewPlugin(name, node.Enabled, configPlugin, runPlugin)
+	PLUGINS = node.Plugins(PLUGIN)
+	log     *logger.Logger
 )
 
 func configPlugin(_ *node.Plugin) {
 	log = logger.NewLogger(name)
 
 	flag.Int(WaspConnPort, 5000, "port for Wasp connections")
-
-	EventValueTransactionReceived = events.NewEvent(func(handler interface{}, params ...interface{}) {
-		handler.(func(_ *transaction.Transaction))(params[0].(*transaction.Transaction))
-	})
 
 	addEndpoints()
 }
@@ -61,7 +55,7 @@ func runPlugin(_ *node.Plugin) {
 					return
 				}
 				log.Debugf("accepted connection from %s", conn.RemoteAddr().String())
-				Run(conn, log)
+				connector.Run(conn, log)
 			}
 		}()
 

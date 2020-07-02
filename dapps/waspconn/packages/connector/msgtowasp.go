@@ -1,22 +1,22 @@
-package waspconn
+package connector
 
 import (
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
-	"github.com/iotaledger/goshimmer/packages/waspconn"
-	"github.com/iotaledger/goshimmer/packages/waspconn/chopper"
-	"github.com/iotaledger/goshimmer/packages/waspconn/utxodb"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/chopper"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/utxodb"
+	waspconn2 "github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 	"github.com/iotaledger/hive.go/netutil/buffconn"
 	"io"
 )
 
 func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error }) error {
-	data, err := waspconn.EncodeMsg(msg)
+	data, err := waspconn2.EncodeMsg(msg)
 	if err != nil {
 		return err
 	}
-	choppedData, chopped := chopper.ChopData(data, buffconn.MaxMessageSize-waspconn.ChunkMessageHeaderSize)
+	choppedData, chopped := chopper.ChopData(data, buffconn.MaxMessageSize-waspconn2.ChunkMessageHeaderSize)
 	if !chopped {
 		if len(data) > buffconn.MaxMessageSize {
 			panic("sendMsgToWasp: internal inconsistency 1")
@@ -29,7 +29,7 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 
 	// sending piece by piece wrapped in WaspMsgChunk
 	for _, piece := range choppedData {
-		dataToSend, err := waspconn.EncodeMsg(&waspconn.WaspMsgChunk{
+		dataToSend, err := waspconn2.EncodeMsg(&waspconn2.WaspMsgChunk{
 			Data: piece,
 		})
 		if err != nil {
@@ -47,11 +47,11 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 }
 
 func (wconn *WaspConnector) sendTransactionToWasp(vtx *transaction.Transaction) error {
-	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeTransactionMsg{vtx})
+	return wconn.sendMsgToWasp(&waspconn2.WaspFromNodeTransactionMsg{vtx})
 }
 
 func (wconn *WaspConnector) sendAddressUpdateToWasp(address *address.Address, balances map[transaction.ID][]*balance.Balance, tx *transaction.Transaction) error {
-	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeAddressUpdateMsg{
+	return wconn.sendMsgToWasp(&waspconn2.WaspFromNodeAddressUpdateMsg{
 		Address:  *address,
 		Balances: balances,
 		Tx:       tx,
@@ -59,7 +59,7 @@ func (wconn *WaspConnector) sendAddressUpdateToWasp(address *address.Address, ba
 }
 
 func (wconn *WaspConnector) sendAddressOutputsToWasp(address *address.Address, balances map[transaction.ID][]*balance.Balance) error {
-	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeAddressOutputsMsg{
+	return wconn.sendMsgToWasp(&waspconn2.WaspFromNodeAddressOutputsMsg{
 		Address:  *address,
 		Balances: balances,
 	})
@@ -71,7 +71,7 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 	if len(outs) == 0 {
 		return
 	}
-	outputs := waspconn.OutputsToBalances(outs)
+	outputs := waspconn2.OutputsToBalances(outs)
 	allColors := make(map[transaction.ID]bool)
 	for _, bals := range outputs {
 		for _, b := range bals {

@@ -2,14 +2,15 @@ package waspconn
 
 import (
 	"fmt"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/connector"
 	"net/http"
 
 	"github.com/iotaledger/hive.go/events"
 
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
-	"github.com/iotaledger/goshimmer/packages/waspconn/apilib"
-	"github.com/iotaledger/goshimmer/packages/waspconn/utxodb"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/apilib"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/utxodb"
 	"github.com/iotaledger/goshimmer/plugins/gracefulshutdown"
 	"github.com/iotaledger/goshimmer/plugins/webapi"
 	"github.com/labstack/echo"
@@ -21,7 +22,7 @@ func addEndpoints() {
 	webapi.Server().POST("/utxodb/tx", handlePostTransaction)
 	webapi.Server().GET("/adm/shutdown", handleShutdown)
 
-	EventValueTransactionReceived.Attach(events.NewClosure(func(tx *transaction.Transaction) {
+	connector.EventValueTransactionReceived.Attach(events.NewClosure(func(tx *transaction.Transaction) {
 		log.Debugf("EventValueTransactionReceived: txid = %s", tx.ID().String())
 	}))
 }
@@ -78,7 +79,7 @@ func handlePostTransaction(c echo.Context) error {
 		return c.JSON(http.StatusConflict, &apilib.PostTransactionResponse{Err: err.Error()})
 	}
 
-	EventValueTransactionReceived.Trigger(tx)
+	connector.EventValueTransactionReceived.Trigger(tx)
 
 	return c.JSON(http.StatusOK, &apilib.PostTransactionResponse{})
 }

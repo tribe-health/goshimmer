@@ -2,7 +2,7 @@ package waspconn
 
 import (
 	"bytes"
-	"github.com/iotaledger/goshimmer/packages/waspconn/utxodb"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/utxodb"
 	"github.com/magiconair/properties/assert"
 	"testing"
 )
