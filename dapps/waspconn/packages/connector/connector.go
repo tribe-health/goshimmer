@@ -201,12 +201,12 @@ func (wconn *WaspConnector) getAddressBalance(addr *address.Address) {
 // find transaction async, parse it to SCTransaction and send to Wasp
 // TODO it is a testing implementation. In real situation transaction would be submitted to the value tangle
 func (wconn *WaspConnector) postTransaction(tx *transaction.Transaction) {
-	if err := utxodb.AddTransaction(tx); err != nil {
-		wconn.log.Warnf("!!!! utxodb.AddTransaction %s : %v", tx.ID().String(), err)
+	onConfirm := func() {
+		EventValueTransactionReceived.Trigger(tx)
+	}
+	if err := utxodb.Confirm.AddTransaction(tx, onConfirm); err != nil {
+		wconn.log.Warn(err)
 		return
 	}
 	wconn.log.Debugf("++++ Added transaction  %s", tx.ID().String())
-
-	// forward it to wasps. Temporary for testing TODO
-	EventValueTransactionReceived.Trigger(tx)
 }

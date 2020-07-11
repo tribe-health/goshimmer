@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/connector"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/utxodb"
 	"github.com/iotaledger/goshimmer/packages/shutdown"
 	"github.com/iotaledger/goshimmer/plugins/config"
 	"github.com/iotaledger/hive.go/daemon"
@@ -11,11 +12,13 @@ import (
 	"github.com/iotaledger/hive.go/node"
 	"net"
 	"sync"
+	"time"
 )
 
 const (
-	PluginName   = "WaspConn"
-	WaspConnPort = "waspconn.port"
+	PluginName                 = "WaspConn"
+	WaspConnPort               = "waspconn.port"
+	WaspConnUtxodbConfirmDelay = "waspconn.utxodbconfirmseconds"
 )
 
 var (
@@ -39,6 +42,11 @@ func configPlugin(_ *node.Plugin) {
 	log = logger.NewLogger(PluginName)
 
 	flag.Int(WaspConnPort, 5000, "port for Wasp connections")
+	flag.Int(WaspConnUtxodbConfirmDelay, 0, "emulated confirmation delay for utxodb in seconds")
+	confDelay := time.Duration(config.Node().GetInt(WaspConnUtxodbConfirmDelay)) * time.Second
+	utxodb.SetConfirmationTime(confDelay)
+
+	log.Infof("UTXODB confirmation delay: %v", confDelay)
 
 	addEndpoints()
 }

@@ -19,6 +19,7 @@ import (
 
 func addEndpoints() {
 	webapi.Server().GET("/utxodb/outputs/:address", handleGetAddressOutputs)
+	webapi.Server().GET("/utxodb/confirmed/:txid", handleIsConfirmed)
 	webapi.Server().POST("/utxodb/tx", handlePostTransaction)
 	webapi.Server().GET("/adm/shutdown", handleShutdown)
 
@@ -73,13 +74,13 @@ func handlePostTransaction(c echo.Context) error {
 
 	log.Debugf("handlePostTransaction:utxodb.AddTransaction: txid %s", tx.ID().String())
 
-	err = utxodb.AddTransaction(tx)
+	err = utxodb.Confirm.AddTransaction(tx, func() {
+		connector.EventValueTransactionReceived.Trigger(tx)
+	})
 	if err != nil {
-		log.Warnf("handlePostTransaction:utxodb.AddTransaction: txid %s", tx.ID().String())
+		log.Warnf("handlePostTransaction:utxodb.AddTransaction: txid %s err = %v", tx.ID().String(), err)
 		return c.JSON(http.StatusConflict, &apilib.PostTransactionResponse{Err: err.Error()})
 	}
-
-	connector.EventValueTransactionReceived.Trigger(tx)
 
 	return c.JSON(http.StatusOK, &apilib.PostTransactionResponse{})
 }
@@ -87,4 +88,16 @@ func handlePostTransaction(c echo.Context) error {
 func handleShutdown(c echo.Context) error {
 	gracefulshutdown.ShutdownWithError(fmt.Errorf("Shutdown requested from WebAPI."))
 	return nil
+}
+
+func handleIsConfirmed(c echo.Context) error {
+	log.Debugw("handleIsConfirmed")
+	txid, err := transaction.IDFromBase58(c.Param("txid"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, &apilib.IsConfirmedResponse{Err: err.Error()})
+	}
+	confirmed := utxodb.IsConfirmed(&txid)
+	log.Debugf("handleIsConfirmed: txid %s confirmed = %v", txid.String(), confirmed)
+
+	return c.JSON(http.StatusOK, &apilib.IsConfirmedResponse{Confirmed: confirmed})
 }

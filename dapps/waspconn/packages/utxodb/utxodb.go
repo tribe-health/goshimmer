@@ -40,14 +40,45 @@ func Init() {
 	genesisInit()
 }
 
-func AddTransaction(tx *transaction.Transaction) error {
-	//fmt.Printf("[utxodb] AddTransaction::\n%s\n", tx.String())
-
+func ValidateTransaction(tx *transaction.Transaction) error {
 	if err := CheckInputsOutputs(tx); err != nil {
 		return fmt.Errorf("%v: txid %s", err, tx.ID().String())
 	}
 	if !tx.SignaturesValid() {
 		return fmt.Errorf("invalid signature txid = %s", tx.ID().String())
+	}
+	return nil
+}
+
+func AreConflicting(tx1, tx2 *transaction.Transaction) bool {
+	if tx1.ID() == tx2.ID() {
+		return true
+	}
+	ret := false
+	tx1.Inputs().ForEach(func(oid1 transaction.OutputID) bool {
+		tx2.Inputs().ForEach(func(oid2 transaction.OutputID) bool {
+			if oid1 == oid2 {
+				ret = true
+				return false
+			}
+			return true
+		})
+		return true
+	})
+	return ret
+}
+
+func IsConfirmed(txid *transaction.ID) bool {
+	mutexdb.Lock()
+	defer mutexdb.Unlock()
+	_, ok := transactions[*txid]
+	return ok
+}
+
+func AddTransaction(tx *transaction.Transaction) error {
+	//fmt.Printf("[utxodb] AddTransaction::\n%s\n", tx.String())
+	if err := ValidateTransaction(tx); err != nil {
+		return err
 	}
 
 	mutexdb.Lock()
@@ -68,7 +99,7 @@ func AddTransaction(tx *transaction.Transaction) error {
 		return false
 	})
 	if err != nil {
-		return fmt.Errorf("invalid or conflicting inputs: '%v' txid %s", err, tx.ID().String())
+		return fmt.Errorf("conflict/double spend: '%v' txid %s", err, tx.ID().String())
 	}
 
 	// add outputs to utxo ledger
