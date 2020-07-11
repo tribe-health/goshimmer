@@ -16,9 +16,12 @@ import (
 )
 
 const (
-	PluginName                 = "WaspConn"
-	WaspConnPort               = "waspconn.port"
-	WaspConnUtxodbConfirmDelay = "waspconn.utxodbconfirmseconds"
+	PluginName = "WaspConn"
+
+	WaspConnPort                         = "waspconn.port"
+	WaspConnUtxodbConfirmDelay           = "waspconn.utxodbconfirmseconds"
+	WaspConnUtxodbConfirmRandomize       = "waspconn.utxodbconfirmrandomize"
+	WaspConnUtxodbConfirmFirstInConflict = "waspconn.utxodbconfirmfirst"
 )
 
 var (
@@ -43,10 +46,16 @@ func configPlugin(_ *node.Plugin) {
 
 	flag.Int(WaspConnPort, 5000, "port for Wasp connections")
 	flag.Int(WaspConnUtxodbConfirmDelay, 0, "emulated confirmation delay for utxodb in seconds")
-	confDelay := time.Duration(config.Node().GetInt(WaspConnUtxodbConfirmDelay)) * time.Second
-	utxodb.SetConfirmationTime(confDelay)
+	flag.Bool(WaspConnUtxodbConfirmRandomize, false, "is confirmation time random with the mean at confirmation delay")
+	flag.Bool(WaspConnUtxodbConfirmFirstInConflict, false, "in case of conflict, confirm first transaction. Default is reject all")
 
-	log.Infof("UTXODB confirmation delay: %v", confDelay)
+	confDelay := time.Duration(config.Node().GetInt(WaspConnUtxodbConfirmDelay)) * time.Second
+	randomize := config.Node().GetBool(WaspConnUtxodbConfirmRandomize)
+	confirmFirst := config.Node().GetBool(WaspConnUtxodbConfirmFirstInConflict)
+
+	utxodb.SetConfirmationParams(confDelay, randomize, confirmFirst)
+
+	log.Infof("UTXODB confirmation delay (mean): %v randmize confirmation: %v", confDelay)
 
 	addEndpoints()
 }

@@ -3,6 +3,7 @@ package utxodb
 import (
 	"fmt"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -15,14 +16,15 @@ type pendingTransaction struct {
 }
 
 type confirmEmulator struct {
-	confirmTime         time.Duration
-	pendingTransactions map[transaction.ID]*pendingTransaction
+	confirmTime            time.Duration
+	randomize              bool
+	confirmFirstInConflict bool
+	pendingTransactions    map[transaction.ID]*pendingTransaction
 }
 
 var (
-	Confirm                confirmEmulator
-	confirmMutex           sync.Mutex
-	confirmFirstInConflict bool
+	Confirm      confirmEmulator
+	confirmMutex sync.Mutex
 )
 
 func init() {
@@ -32,16 +34,12 @@ func init() {
 	go confirmLoop()
 }
 
-func SetConfirmationTime(confTime time.Duration) {
+func SetConfirmationParams(confTime time.Duration, randomize, confirmFirstInConflict bool) {
 	confirmMutex.Lock()
 	defer confirmMutex.Unlock()
 	Confirm.confirmTime = confTime
-}
-
-func SetConfirmFirstInConflict(yn bool) {
-	confirmMutex.Lock()
-	defer confirmMutex.Unlock()
-	confirmFirstInConflict = yn
+	Confirm.randomize = randomize
+	Confirm.confirmFirstInConflict = confirmFirstInConflict
 }
 
 func (c *confirmEmulator) AddTransaction(tx *transaction.Transaction, onConfirm func()) error {
@@ -68,8 +66,16 @@ func (c *confirmEmulator) AddTransaction(tx *transaction.Transaction, onConfirm 
 			return fmt.Errorf("utxodb.ConfirmEmulator rejected: new tx %s conflicts with pending tx %s", tx.ID().String(), txid.String())
 		}
 	}
+	var confTime time.Duration
+	if Confirm.randomize {
+		confTime = time.Duration(rand.Int31n(int32(Confirm.confirmTime)) + int32(Confirm.confirmTime)/2)
+	} else {
+		confTime = Confirm.confirmTime
+	}
+	deadline := time.Now().Add(confTime)
+
 	Confirm.pendingTransactions[tx.ID()] = &pendingTransaction{
-		confirmDeadline: time.Now().Add(Confirm.confirmTime),
+		confirmDeadline: deadline,
 		tx:              tx,
 		hasConflicts:    false,
 		onConfirm:       onConfirm,
@@ -102,7 +108,7 @@ func confirmLoop() {
 
 		for _, txid := range maturedTxs {
 			ptx := Confirm.pendingTransactions[txid]
-			if ptx.hasConflicts && !confirmFirstInConflict {
+			if ptx.hasConflicts && !Confirm.confirmFirstInConflict {
 				// do not confirm if tx has conflicts
 				fmt.Printf("!!! utxodb.ConfirmEmulator: rejected because has conflicts %s\n", txid.String())
 				continue
