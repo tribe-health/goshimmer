@@ -79,3 +79,10 @@ func (requester *MessageRequester) StopRequest(messageId message.Id) {
 	}
 	requester.scheduledRequestsMutex.RUnlock()
 }
+
+// RequestQueueSize returns the number of scheduled message requests.
+func (requester *MessageRequester) RequestQueueSize() int {
+	requester.scheduledRequestsMutex.RLock()
+	defer requester.scheduledRequestsMutex.RUnlock()
+	return len(requester.scheduledRequests)
+}
