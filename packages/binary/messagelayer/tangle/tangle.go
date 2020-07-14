@@ -2,6 +2,7 @@ package tangle
 
 import (
 	"container/list"
+	"fmt"
 	"runtime"
 	"time"
 
@@ -65,6 +66,8 @@ func New(store kvstore.KVStore) (result *Tangle) {
 
 		Events: *newEvents(),
 	}
+
+	result.DBStats()
 
 	result.solidifierWorkerPool.Tune(runtime.GOMAXPROCS(0))
 	return
@@ -147,7 +150,9 @@ func (tangle *Tangle) Prune() error {
 // DBStats returns the number of solid messages and total number of messages in the database, furthermore the average time it takes to solidify messages.
 func (tangle *Tangle) DBStats() (solidCount int, messageCount int, avgSolidificationTime float64) {
 	var sumSolidificationTime time.Duration
+	var iterations int
 	tangle.messageMetadataStorage.ForEach(func(key []byte, cachedObject objectstorage.CachedObject) bool {
+		iterations++
 		cachedObject.Consume(func(object objectstorage.StorableObject) {
 			msgMetaData := object.(*MessageMetadata)
 			messageCount++
@@ -160,6 +165,7 @@ func (tangle *Tangle) DBStats() (solidCount int, messageCount int, avgSolidifica
 		return true
 	})
 	avgSolidificationTime = float64(sumSolidificationTime.Milliseconds()) / float64(solidCount)
+	fmt.Println("solid", solidCount, "message", messageCount, "iterations", iterations)
 	return
 }
 
