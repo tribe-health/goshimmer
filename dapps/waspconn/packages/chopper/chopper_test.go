@@ -3,12 +3,12 @@ package chopper
 import (
 	"bytes"
 	"crypto/rand"
-	"github.com/iotaledger/hive.go/netutil/buffconn"
+	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/payload"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-const maxChunkSize = buffconn.MaxMessageSize - 3
+const maxChunkSize = payload.MaxMessageSize - 3
 
 func TestBasic(t *testing.T) {
 	dataShort := make([]byte, 2000)
@@ -20,13 +20,13 @@ func TestBasic(t *testing.T) {
 	dataLong2 := make([]byte, 1000000)
 	_, _ = rand.Read(dataLong2)
 
-	dataExact := make([]byte, buffconn.MaxMessageSize)
+	dataExact := make([]byte, payload.MaxMessageSize)
 	_, _ = rand.Read(dataExact)
 
 	dataExact2 := make([]byte, 3*maxChunkSize)
 	_, _ = rand.Read(dataExact2)
 
-	dataExactPlus1 := make([]byte, buffconn.MaxMessageSize+1)
+	dataExactPlus1 := make([]byte, payload.MaxMessageSize+1)
 	_, _ = rand.Read(dataExactPlus1)
 
 	_, ok := ChopData(dataShort, maxChunkSize)
@@ -82,7 +82,7 @@ func TestBasic(t *testing.T) {
 
 func testLength(chopped [][]byte) bool {
 	for _, d := range chopped {
-		if len(d) > buffconn.MaxMessageSize {
+		if len(d) > payload.MaxMessageSize {
 			return false
 		}
 	}

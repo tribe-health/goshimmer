@@ -4,14 +4,15 @@ package chopper
 import (
 	"bytes"
 	"fmt"
-	waspconn2 "github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
-	"github.com/iotaledger/hive.go/netutil/buffconn"
 	"sync"
 	"time"
+
+	waspconn2 "github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
+	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/payload"
 )
 
 const (
-	// for the final data packet to be not bigger than buffconn.MaxMessageSize
+	// for the final data packet to be not bigger than payload.MaxMessageSize
 	// 4 - chunk id, 1 seq nr, 1 num chunks, 2 - data len
 	chunkHeaderSize = 4 + 1 + 1 + 2
 	maxTTL          = 5 * time.Minute
@@ -66,10 +67,10 @@ func getNextMsgId() uint32 {
 }
 
 // ChopData chops data into pieces and adds header to each piece for IncomingChunk function to reassemble it
-// the size of each pieces is buffconn.MaxMessageSize - 3, for the header of the above protocol
+// the size of each pieces is payload.MaxMessageSize - 3, for the header of the above protocol
 func ChopData(data []byte, maxChunkSize uint16) ([][]byte, bool) {
 	maxSizeWithoutHeader := maxChunkSize - chunkHeaderSize
-	if len(data) <= buffconn.MaxMessageSize {
+	if len(data) <= payload.MaxMessageSize {
 		return nil, false // no need to split
 	}
 	if len(data) > int(maxChunkSize)*255 {

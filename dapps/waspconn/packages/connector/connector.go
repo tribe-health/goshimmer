@@ -1,19 +1,21 @@
 package connector
 
 import (
+	"io"
+	"net"
+	"strings"
+
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/utxodb"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
+	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/payload"
 	"github.com/iotaledger/goshimmer/packages/shutdown"
 	"github.com/iotaledger/hive.go/daemon"
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/logger"
 	"github.com/iotaledger/hive.go/netutil/buffconn"
-	"io"
-	"net"
-	"strings"
 )
 
 type WaspConnector struct {
@@ -30,7 +32,7 @@ type WaspConnector struct {
 
 func Run(conn net.Conn, log *logger.Logger) {
 	wconn := &WaspConnector{
-		bconn:        buffconn.NewBufferedConnection(conn),
+		bconn:        buffconn.NewBufferedConnection(conn, payload.MaxMessageSize),
 		exitConnChan: make(chan struct{}),
 		log:          log,
 	}
