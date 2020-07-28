@@ -105,6 +105,11 @@ func (tangle *Tangle) DeleteMessage(messageId message.Id) {
 	})
 }
 
+// DeleteMissingMessage deletes a message from the missingMessageStorage.
+func (tangle *Tangle) DeleteMissingMessage(messageID message.Id) {
+	tangle.missingMessageStorage.Delete(messageID[:])
+}
+
 // Shutdown marks the tangle as stopped, so it will not accept any new messages (waits for all backgroundTasks to finish).
 func (tangle *Tangle) Shutdown() *Tangle {
 	tangle.storeMessageWorkerPool.ShutdownGracefully()
@@ -135,8 +140,10 @@ func (tangle *Tangle) Prune() error {
 	return nil
 }
 
-// DBStats returns the number of solid messages and total number of messages in the database, furthermore the average time it takes to solidify messages.
-func (tangle *Tangle) DBStats() (solidCount int, messageCount int, avgSolidificationTime float64) {
+// DBStats returns the number of solid messages and total number of messages in the database (messageMetadataStorage,
+// that should contain the messages as messageStorage), the number of messages in missingMessageStorage, furthermore
+// the average time it takes to solidify messages.
+func (tangle *Tangle) DBStats() (solidCount int, messageCount int, avgSolidificationTime float64, missingMessageCount int) {
 	var sumSolidificationTime time.Duration
 	tangle.messageMetadataStorage.ForEach(func(key []byte, cachedObject objectstorage.CachedObject) bool {
 		cachedObject.Consume(func(object objectstorage.StorableObject) {
@@ -153,6 +160,26 @@ func (tangle *Tangle) DBStats() (solidCount int, messageCount int, avgSolidifica
 	if solidCount > 0 {
 		avgSolidificationTime = float64(sumSolidificationTime.Milliseconds()) / float64(solidCount)
 	}
+	tangle.missingMessageStorage.ForEach(func(key []byte, cachedObject objectstorage.CachedObject) bool {
+		cachedObject.Consume(func(object objectstorage.StorableObject) {
+			missingMessageCount++
+		})
+		return true
+	})
+	return
+}
+
+// MissingMessages return the ids of messages in missingMessageStorage
+func (tangle *Tangle) MissingMessages() (ids []message.Id) {
+	tangle.missingMessageStorage.ForEach(func(key []byte, cachedObject objectstorage.CachedObject) bool {
+		cachedObject.Consume(func(object objectstorage.StorableObject) {
+			missingMsg := object.(*MissingMessage)
+			if !missingMsg.IsDeleted() {
+				ids = append(ids, missingMsg.messageId)
+			}
+		})
+		return true
+	})
 	return
 }
 
@@ -183,6 +210,7 @@ func (tangle *Tangle) storeMessageWorker(msg *message.Message) {
 	if tangle.missingMessageStorage.DeleteIfPresent(messageId[:]) {
 		tangle.Events.MissingMessageReceived.Trigger(cachedMessage, cachedMsgMetadata)
 	}
+
 	tangle.Events.MessageAttached.Trigger(cachedMessage, cachedMsgMetadata)
 
 	// check message solidity
@@ -324,4 +352,24 @@ func (tangle *Tangle) SolidifierWorkerPoolStatus() (name string, load int) {
 // StoreMessageWorkerPoolStatus returns the name and the load of the workerpool.
 func (tangle *Tangle) StoreMessageWorkerPoolStatus() (name string, load int) {
 	return "StoreMessage", tangle.storeMessageWorkerPool.RunningWorkers()
+}
+
+// RetrieveAllTips returns the tips (i.e., solid messages that are not part of the approvers list).
+// It iterates over the messageMetadataStorage, thus only use this method if necessary.
+// TODO: improve this function.
+func (tangle *Tangle) RetrieveAllTips() (tips []message.Id) {
+	tangle.messageMetadataStorage.ForEach(func(key []byte, cachedMessage objectstorage.CachedObject) bool {
+		cachedMessage.Consume(func(object objectstorage.StorableObject) {
+			messageMetadata := object.(*MessageMetadata)
+			if messageMetadata != nil && messageMetadata.IsSolid() {
+				cachedApprovers := tangle.Approvers(messageMetadata.messageId)
+				if len(cachedApprovers) == 0 {
+					tips = append(tips, messageMetadata.messageId)
+				}
+				cachedApprovers.Consume(func(approver *Approver) {})
+			}
+		})
+		return true
+	})
+	return tips
 }

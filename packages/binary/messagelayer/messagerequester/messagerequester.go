@@ -8,26 +8,50 @@ import (
 	"github.com/iotaledger/hive.go/events"
 )
 
+const messageExistCheckThreshold = 10
+
 // MessageRequester takes care of requesting messages.
 type MessageRequester struct {
 	scheduledRequests map[message.Id]*time.Timer
 	options           *Options
+	messageExistsFunc MessageExistsFunc
 	Events            Events
 
 	scheduledRequestsMutex sync.RWMutex
 }
 
+// MessageExistsFunc is a function that tells if a message exists.
+type MessageExistsFunc func(messageId message.Id) bool
+
+func createReRequest(requester *MessageRequester, msgID message.Id, count int) func() {
+	return func() { requester.reRequest(msgID, count) }
+}
+
 // New creates a new message requester.
-func New(optionalOptions ...Option) *MessageRequester {
-	return &MessageRequester{
+func New(messageExists MessageExistsFunc, missingMessages []message.Id, optionalOptions ...Option) *MessageRequester {
+	requester := &MessageRequester{
 		scheduledRequests: make(map[message.Id]*time.Timer),
 		options:           newOptions(optionalOptions),
+		messageExistsFunc: messageExists,
 		Events: Events{
 			SendRequest: events.NewEvent(func(handler interface{}, params ...interface{}) {
 				handler.(func(message.Id))(params[0].(message.Id))
 			}),
+			MissingMessageAppeared: events.NewEvent(func(handler interface{}, params ...interface{}) {
+				handler.(func(message.Id))(params[0].(message.Id))
+			}),
 		},
 	}
+
+	// add requests for all missing messages
+	requester.scheduledRequestsMutex.Lock()
+	defer requester.scheduledRequestsMutex.Unlock()
+
+	for _, id := range missingMessages {
+		requester.scheduledRequests[id] = time.AfterFunc(requester.options.retryInterval, createReRequest(requester, id, 0))
+	}
+
+	return requester
 }
 
 // StartRequest initiates a regular triggering of the StartRequest event until it has been stopped using StopRequest.
@@ -41,7 +65,7 @@ func (requester *MessageRequester) StartRequest(id message.Id) {
 	}
 
 	// schedule the next request and trigger the event
-	requester.scheduledRequests[id] = time.AfterFunc(requester.options.retryInterval, func() { requester.reRequest(id) })
+	requester.scheduledRequests[id] = time.AfterFunc(requester.options.retryInterval, func() { createReRequest(requester, id, 0) })
 	requester.scheduledRequestsMutex.Unlock()
 	requester.Events.SendRequest.Trigger(id)
 }
@@ -57,16 +81,26 @@ func (requester *MessageRequester) StopRequest(id message.Id) {
 	}
 }
 
-func (requester *MessageRequester) reRequest(id message.Id) {
-	// as we schedule a request at most once per id we do not need to make the trigger and the re-schedule atomic
+func (requester *MessageRequester) reRequest(id message.Id, count int) {
 	requester.Events.SendRequest.Trigger(id)
 
+	count++
+	stopRequest := count > messageExistCheckThreshold && requester.messageExistsFunc(id)
+
+	// as we schedule a request at most once per id we do not need to make the trigger and the re-schedule atomic
 	requester.scheduledRequestsMutex.Lock()
 	defer requester.scheduledRequestsMutex.Unlock()
 
 	// reschedule, if the request has not been stopped in the meantime
 	if _, exists := requester.scheduledRequests[id]; exists {
-		requester.scheduledRequests[id] = time.AfterFunc(requester.options.retryInterval, func() { requester.reRequest(id) })
+		if stopRequest {
+			// if found message tangle: stop request and delete from missingMessageStorage (via event)
+			delete(requester.scheduledRequests, id)
+			requester.Events.MissingMessageAppeared.Trigger(id)
+			return
+		}
+		requester.scheduledRequests[id] = time.AfterFunc(requester.options.retryInterval, func() { createReRequest(requester, id, count) })
+		return
 	}
 }
 
