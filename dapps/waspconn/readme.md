@@ -49,24 +49,24 @@ Protocol can handle practically unlimited message sizes.
 
 Functions:
 
-### Posting a transaction
+#### Posting a transaction
 Wasp node may post the transaction to Goshimmer for confirmation just like any other external program, for example 
 a wallet. 
 If `utxodb` is enabled, the transaction goes right into the confirmation emulation mechanism of `utxodb`. 
 
-### Subscription
+#### Subscription
 Wasp node subscribes to transaction it wants to receive. It sends a list of addresses of smart contracts 
 it is running and WaspConn is sending to Wasp any new confirmed transaction which has subscribed address among it 
 outputs.
 
-### Requesting a transaction
+#### Requesting a transaction
 Wasp may request a transaction by hash. WaspConn plugin sends the confirmed transaction to Wasp (if found).
 
-### Requesting address balances
+#### Requesting address balances
 Wasp may request address balances from Goshimmer. 
 WaspConn sends confirmed UTXOs which belongs to the address.  
 
-### Sending request backlog to Wasp
+#### Sending request backlog to Wasp
 Upon request, WaspCon may send not only UTXO contained in the address, but it may also analyse colored 
 tokens and send origin transactions of corresponding colors if they contain unspent outputs. 
 This is how backlog of requests is handled on the tangle.
