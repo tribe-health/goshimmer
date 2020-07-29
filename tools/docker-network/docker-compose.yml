@@ -29,7 +29,8 @@ services:
       --metrics.global=true
       --prometheus.bindAddress=0.0.0.0:9312
       --node.enablePlugins=analysis-server,analysis-dashboard,prometheus
-      --node.disablePlugins=portcheck,dashboard,analysis-client,gossip,drng,issuer,syncbeaconfollower,messagelayer,pow,valuetransfers,webapi,webapibroadcastdataendpoint,webapifindtransactionhashesendpoint,webapigetneighborsendpoint,webapigettransactionobjectsbyhashendpoint,webapigettransactiontrytesbyhashendpoint
+      --node.disablePlugins=portcheck,dashboard,analysis-client,gossip,drng,issuer,syncbeaconfollower,messagelayer,pow,valuetransfers,webapi,webapibroadcastdataendpoint,webapifindtransactionhashesendpoint,webapigetneighborsendpoint,webapigettransactionobjectsbyhashendpoint,webapigettransactiontrytesbyhashendpoint,waspconn
+      --waspconn.utxodbenabled=false
     volumes:
       - ./config.docker.json:/tmp/config.json:ro
       - goshimmer-cache:/go
@@ -53,6 +54,7 @@ services:
       --valueLayer.snapshot.file=/tmp/assets/7R1itJx5hVuo9w9hjg5cwKFmek4HMSoBDgJZN8hKGxih.bin
       --syncbeacon.broadcastInterval=5
       --syncbeacon.startSynced=true
+      --waspconn.utxodbenabled=false
     volumes:
       - ./config.docker.json:/tmp/config.json:ro
       - goshimmer-cache:/go
@@ -74,6 +76,7 @@ services:
       --valueLayer.snapshot.file=/tmp/assets/7R1itJx5hVuo9w9hjg5cwKFmek4HMSoBDgJZN8hKGxih.bin
       --node.disablePlugins=portcheck
       --syncbeaconfollower.followNodes=EYsaGXnUVA9aTYL9FwYEvoQ8d1HCJveQVL7vogu6pqCP
+      --waspconn.utxodbenabled=false
     volumes:
       - ./config.docker.json:/tmp/config.json:ro
       - goshimmer-cache:/go

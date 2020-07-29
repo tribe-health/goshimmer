@@ -25,6 +25,11 @@ const (
 	WaspConnUtxodbEnabled = "waspconn.utxodbenabled"
 )
 
+func init() {
+	flag.Int(WaspConnPort, 5000, "port for Wasp connections")
+	flag.Bool(WaspConnUtxodbEnabled, true, "is utxodb mocking the value tangle enabled") // later change the default
+}
+
 var (
 	app     *node.Plugin
 	appOnce sync.Once
@@ -44,11 +49,10 @@ func App() *node.Plugin {
 
 func configPlugin(plugin *node.Plugin) {
 	log = logger.NewLogger(PluginName)
-	flag.Int(WaspConnPort, 5000, "port for Wasp connections")
 
-	pUtxodbEnabled := flag.Bool(WaspConnUtxodbEnabled, true, "is utxodb mocking the value tangle enabled") // later change the default
+	utxodbEnabled := config.Node().GetBool(WaspConnUtxodbEnabled)
 
-	if *pUtxodbEnabled {
+	if utxodbEnabled {
 		testing.Config(plugin, log)
 		log.Infof("configured with UTXODB enabled")
 	} else {
