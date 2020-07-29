@@ -1,27 +1,28 @@
 package waspconn
 
 import (
-	"flag"
 	"fmt"
+	"github.com/iotaledger/goshimmer/dapps/valuetransfers"
+	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/tangle"
+	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/connector"
-	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/utxodb"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/testing"
 	"github.com/iotaledger/goshimmer/packages/shutdown"
 	"github.com/iotaledger/goshimmer/plugins/config"
 	"github.com/iotaledger/hive.go/daemon"
+	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/logger"
 	"github.com/iotaledger/hive.go/node"
+	flag "github.com/spf13/pflag"
 	"net"
 	"sync"
-	"time"
 )
 
 const (
 	PluginName = "WaspConn"
 
-	WaspConnPort                         = "waspconn.port"
-	WaspConnUtxodbConfirmDelay           = "waspconn.utxodbconfirmseconds"
-	WaspConnUtxodbConfirmRandomize       = "waspconn.utxodbconfirmrandomize"
-	WaspConnUtxodbConfirmFirstInConflict = "waspconn.utxodbconfirmfirst"
+	WaspConnPort          = "waspconn.port"
+	WaspConnUtxodbEnabled = "waspconn.utxodbenabled"
 )
 
 var (
@@ -41,23 +42,34 @@ func App() *node.Plugin {
 	return app
 }
 
-func configPlugin(_ *node.Plugin) {
+func configPlugin(plugin *node.Plugin) {
 	log = logger.NewLogger(PluginName)
-
 	flag.Int(WaspConnPort, 5000, "port for Wasp connections")
-	flag.Int(WaspConnUtxodbConfirmDelay, 0, "emulated confirmation delay for utxodb in seconds")
-	flag.Bool(WaspConnUtxodbConfirmRandomize, false, "is confirmation time random with the mean at confirmation delay")
-	flag.Bool(WaspConnUtxodbConfirmFirstInConflict, false, "in case of conflict, confirm first transaction. Default is reject all")
 
-	confDelay := time.Duration(config.Node().GetInt(WaspConnUtxodbConfirmDelay)) * time.Second
-	randomize := config.Node().GetBool(WaspConnUtxodbConfirmRandomize)
-	confirmFirst := config.Node().GetBool(WaspConnUtxodbConfirmFirstInConflict)
+	pUtxodbEnabled := flag.Bool(WaspConnUtxodbEnabled, true, "is utxodb mocking the value tangle enabled") // later change the default
 
-	utxodb.SetConfirmationParams(confDelay, randomize, confirmFirst)
+	if *pUtxodbEnabled {
+		testing.Config(plugin, log)
+		log.Infof("configured with UTXODB enabled")
+	} else {
+		configPluginStandard(plugin)
+		log.Infof("configured for ValueTangle")
+	}
+}
 
-	log.Infof("UTXODB confirmation delay (mean): %v randmize confirmation: %v", confDelay)
+func configPluginStandard(_ *node.Plugin) {
+	valuetransfers.Tangle().Events.TransactionConfirmed.Attach(events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata) {
+		// TODO forward to connector.EventValueTransactionReceived
+		tx := ctx.Unwrap() // ??
+		if tx != nil {
+			connector.EventValueTransactionReceived.Trigger(tx)
+		}
+	}))
 
-	addEndpoints()
+	connector.EventValueTransactionReceived.Attach(events.NewClosure(func(tx *transaction.Transaction) {
+		log.Debugf("EventValueTransactionReceived: txid = %s", tx.ID().String())
+	}))
+
 }
 
 func runPlugin(_ *node.Plugin) {

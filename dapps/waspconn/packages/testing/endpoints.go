@@ -1,4 +1,4 @@
-package waspconn
+package testing
 
 import (
 	"fmt"
@@ -18,10 +18,13 @@ import (
 )
 
 func addEndpoints() {
+
 	webapi.Server().GET("/utxodb/outputs/:address", handleGetAddressOutputs)
 	webapi.Server().GET("/utxodb/confirmed/:txid", handleIsConfirmed)
 	webapi.Server().POST("/utxodb/tx", handlePostTransaction)
 	webapi.Server().GET("/adm/shutdown", handleShutdown)
+
+	log.Info("addded UTXODB endpoints")
 
 	connector.EventValueTransactionReceived.Attach(events.NewClosure(func(tx *transaction.Transaction) {
 		log.Debugf("EventValueTransactionReceived: txid = %s", tx.ID().String())

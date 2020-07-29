@@ -18,7 +18,11 @@ var (
 
 func init() {
 	Init()
+	fmt.Printf("UTXODB initialized\n")
+}
 
+// PrintPredefined prints basic value and stats of predefined addresses
+func PrintPredefined() {
 	stats := GetLedgerStats()
 	fmt.Printf("UTXODB initialized:\nSeed: %s\nTotal supply = %di\nGenesis + %d predefined addresses with %di each\n",
 		seedStr, supply, len(sigSchemes)-1, ownerAmount)
@@ -28,7 +32,6 @@ func init() {
 		addr := sigScheme.Address()
 		fmt.Printf("#%d: %s: balance %d, num outputs %d\n", i, addr.String(), stats[addr].Total, stats[addr].NumOutputs)
 	}
-
 }
 
 func Init() {
