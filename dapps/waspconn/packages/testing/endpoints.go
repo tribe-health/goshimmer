@@ -17,11 +17,12 @@ import (
 	"github.com/mr-tron/base58"
 )
 
-func addEndpoints() {
+func addEndpoints(emulator *utxodb.ConfirmEmulator) {
+	t := &testingHandler{emulator}
 
-	webapi.Server().GET("/utxodb/outputs/:address", handleGetAddressOutputs)
-	webapi.Server().GET("/utxodb/confirmed/:txid", handleIsConfirmed)
-	webapi.Server().POST("/utxodb/tx", handlePostTransaction)
+	webapi.Server().GET("/utxodb/outputs/:address", t.handleGetAddressOutputs)
+	webapi.Server().GET("/utxodb/confirmed/:txid", t.handleIsConfirmed)
+	webapi.Server().POST("/utxodb/tx", t.handlePostTransaction)
 	webapi.Server().GET("/adm/shutdown", handleShutdown)
 
 	log.Info("addded UTXODB endpoints")
@@ -31,13 +32,17 @@ func addEndpoints() {
 	}))
 }
 
-func handleGetAddressOutputs(c echo.Context) error {
+type testingHandler struct {
+	emulator *utxodb.ConfirmEmulator
+}
+
+func (t *testingHandler) handleGetAddressOutputs(c echo.Context) error {
 	log.Debugw("handleGetAddressOutputs")
 	addr, err := address.FromBase58(c.Param("address"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, &apilib.GetAccountOutputsResponse{Err: err.Error()})
 	}
-	outputs := utxodb.GetAddressOutputs(addr)
+	outputs := t.emulator.UtxoDB.GetAddressOutputs(addr)
 	log.Debugf("handleGetAddressOutputs: addr %s from utxodb %+v", addr.String(), outputs)
 
 	out := make(map[string][]apilib.OutputBalance)
@@ -59,7 +64,7 @@ func handleGetAddressOutputs(c echo.Context) error {
 	}, " ")
 }
 
-func handlePostTransaction(c echo.Context) error {
+func (t *testingHandler) handlePostTransaction(c echo.Context) error {
 	var req apilib.PostTransactionRequest
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, &apilib.PostTransactionResponse{Err: err.Error()})
@@ -77,7 +82,7 @@ func handlePostTransaction(c echo.Context) error {
 
 	log.Debugf("handlePostTransaction:utxodb.AddTransaction: txid %s", tx.ID().String())
 
-	err = utxodb.Confirm.AddTransaction(tx, func() {
+	err = t.emulator.AddTransaction(tx, func() {
 		connector.EventValueTransactionReceived.Trigger(tx)
 	})
 	if err != nil {
@@ -93,13 +98,13 @@ func handleShutdown(c echo.Context) error {
 	return nil
 }
 
-func handleIsConfirmed(c echo.Context) error {
+func (t *testingHandler) handleIsConfirmed(c echo.Context) error {
 	log.Debugw("handleIsConfirmed")
 	txid, err := transaction.IDFromBase58(c.Param("txid"))
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, &apilib.IsConfirmedResponse{Err: err.Error()})
 	}
-	confirmed := utxodb.IsConfirmed(&txid)
+	confirmed := t.emulator.UtxoDB.IsConfirmed(&txid)
 	log.Debugf("handleIsConfirmed: txid %s confirmed = %v", txid.String(), confirmed)
 
 	return c.JSON(http.StatusOK, &apilib.IsConfirmedResponse{Confirmed: confirmed})

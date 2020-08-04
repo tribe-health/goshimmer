@@ -8,13 +8,13 @@ import (
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 )
 
-func collectInputBalances(tx *transaction.Transaction) (map[balance.Color]int64, int64, error) {
+func (u *UtxoDB) collectInputBalances(tx *transaction.Transaction) (map[balance.Color]int64, int64, error) {
 	ret := make(map[balance.Color]int64)
 	retsum := int64(0)
 
 	var err error
 	tx.Inputs().ForEach(func(outputId transaction.OutputID) bool {
-		txInp, ok := GetTransaction(outputId.TransactionID())
+		txInp, ok := u.GetTransaction(outputId.TransactionID())
 		if !ok {
 			err = fmt.Errorf("can't find txid %s", outputId.TransactionID().String())
 			return false
@@ -53,7 +53,7 @@ func collectOutputBalances(tx *transaction.Transaction) (map[balance.Color]int64
 			if _, ok := ret[bal.Color]; !ok {
 				ret[bal.Color] = 0
 			}
-			ret[bal.Color] = ret[bal.Color] + bal.Value
+			ret[bal.Color] += bal.Value
 			retsum += bal.Value
 		}
 		return true
@@ -61,14 +61,14 @@ func collectOutputBalances(tx *transaction.Transaction) (map[balance.Color]int64
 	return ret, retsum
 }
 
-func CheckInputsOutputs(tx *transaction.Transaction) error {
-	inbals, insum, err := collectInputBalances(tx)
+func (u *UtxoDB) CheckInputsOutputs(tx *transaction.Transaction) error {
+	inbals, insum, err := u.collectInputBalances(tx)
 	if err != nil {
 		return fmt.Errorf("CheckInputsOutputs: wrong inputs: %v", err)
 	}
 	outbals, outsum := collectOutputBalances(tx)
 	if insum != outsum {
-		return errors.New("unequal totals")
+		return fmt.Errorf("unequal totals: %d != %d", insum, outsum)
 	}
 
 	for col, inb := range inbals {

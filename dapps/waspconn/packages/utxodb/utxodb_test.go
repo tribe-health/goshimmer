@@ -7,33 +7,39 @@ import (
 )
 
 func TestBasic(t *testing.T) {
-	genTx, ok := GetTransaction(genesisTxId)
+	u := New()
+	genTx, ok := u.GetTransaction(u.genesisTxId)
 	assert.Equal(t, ok, true)
-	assert.Equal(t, genTx.ID(), genesisTxId)
+	assert.Equal(t, genTx.ID(), u.genesisTxId)
 }
 
-func TestKnowAddresses(t *testing.T) {
-	for i := 0; i < 4; i++ {
-		sigS := GetSigScheme(GetAddress(i))
-		t.Logf("#%d address: %s", i, sigS.Address().String())
+func getBalance(u *UtxoDB, address address.Address) int64 {
+	gout := u.GetAddressOutputs(address)
+	total := int64(0)
+	for oid := range gout {
+		sum, err := u.getOutputTotal(oid)
+		if err != nil {
+			panic(err)
+		}
+		total += sum
 	}
+	return total
 }
 
 func TestGenesis(t *testing.T) {
-	gout := GetAddressOutputs(GetGenesisSigScheme().Address())
-	total := int64(0)
-	for oid := range gout {
-		sum, err := getOutputTotal(oid)
-		assert.Equal(t, err, nil)
-		total += sum
-	}
-	assert.Equal(t, total, supply-(int64(len(sigSchemes))-1)*ownerAmount)
-	checkLedgerBalance()
+	u := New()
+	assert.Equal(t, supply, getBalance(u, u.GetGenesisSigScheme().Address()))
+	u.checkLedgerBalance()
 }
 
-func TestTransfer(t *testing.T) {
-	_, err := DistributeIotas(1000000, GetGenesisAddress(), []address.Address{GetAddress(1)})
-	assert.Equal(t, err, nil)
+func TestRequestFunds(t *testing.T) {
+	u := New()
+	addr := NewSigScheme("C6hPhCS2E2dKUGS3qj4264itKXohwgL3Lm2fNxayAKr", 0).Address()
+	_, err := u.RequestFunds(addr)
+	assert.NoError(t, err)
+	assert.EqualValues(t, supply-RequestFundsAmount, getBalance(u, u.GetGenesisSigScheme().Address()))
+	assert.EqualValues(t, RequestFundsAmount, getBalance(u, addr))
+	u.checkLedgerBalance()
 }
 
 //

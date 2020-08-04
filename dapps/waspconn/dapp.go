@@ -2,11 +2,15 @@ package waspconn
 
 import (
 	"fmt"
+	"net"
+	"sync"
+
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/tangle"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/connector"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/testing"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/utxodb"
 	"github.com/iotaledger/goshimmer/packages/shutdown"
 	"github.com/iotaledger/goshimmer/plugins/config"
 	"github.com/iotaledger/hive.go/daemon"
@@ -14,8 +18,6 @@ import (
 	"github.com/iotaledger/hive.go/logger"
 	"github.com/iotaledger/hive.go/node"
 	flag "github.com/spf13/pflag"
-	"net"
-	"sync"
 )
 
 const (
@@ -38,6 +40,8 @@ var (
 		App(),
 	)
 	log *logger.Logger
+
+	emulator *utxodb.ConfirmEmulator
 )
 
 func App() *node.Plugin {
@@ -53,7 +57,8 @@ func configPlugin(plugin *node.Plugin) {
 	utxodbEnabled := config.Node().GetBool(WaspConnUtxodbEnabled)
 
 	if utxodbEnabled {
-		testing.Config(plugin, log)
+		emulator = utxodb.NewConfirmEmulator()
+		testing.Config(plugin, log, emulator)
 		log.Infof("configured with UTXODB enabled")
 	} else {
 		configPluginStandard(plugin)
@@ -100,7 +105,7 @@ func runPlugin(_ *node.Plugin) {
 					return
 				}
 				log.Debugf("accepted connection from %s", conn.RemoteAddr().String())
-				connector.Run(conn, log)
+				connector.Run(conn, log, emulator)
 			}
 		}()
 

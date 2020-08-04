@@ -63,6 +63,7 @@ services:
       - "127.0.0.1:8080:8080/tcp" # web API
       - "127.0.0.1:8081:8081/tcp" # dashboard
       - "127.0.0.1:9311:9311/tcp" # prometheus
+      - "127.0.0.1:5000:5000/tcp" # waspconn
     depends_on:
       - entry_node
 
