@@ -9,7 +9,7 @@ import (
 
 const RequestFundsAmount = 1337 // same as Faucet
 
-func (u *UtxoDB) RequestFunds(target address.Address) (*transaction.Transaction, error) {
+func (u *UtxoDB) requestFundsTx(target address.Address) (*transaction.Transaction, error) {
 	sourceOutputs := u.GetAddressOutputs(u.GetGenesisAddress())
 
 	oids := make([]transaction.OutputID, 0)
@@ -54,7 +54,16 @@ func (u *UtxoDB) RequestFunds(target address.Address) (*transaction.Transaction,
 		panic("something wrong with signatures")
 	}
 
-	err := u.AddTransaction(tx)
+	return tx, nil
+}
+
+func (u *UtxoDB) RequestFunds(target address.Address) (*transaction.Transaction, error) {
+	tx, err := u.requestFundsTx(target)
+	if err != nil {
+		return nil, err
+	}
+
+	err = u.AddTransaction(tx)
 	if err != nil {
 		return nil, err
 	}

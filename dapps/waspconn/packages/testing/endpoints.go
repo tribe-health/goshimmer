@@ -2,27 +2,29 @@ package testing
 
 import (
 	"fmt"
-	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/connector"
 	"net/http"
+
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/connector"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/valuetangle"
 
 	"github.com/iotaledger/hive.go/events"
 
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/apilib"
-	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/utxodb"
 	"github.com/iotaledger/goshimmer/plugins/gracefulshutdown"
 	"github.com/iotaledger/goshimmer/plugins/webapi"
 	"github.com/labstack/echo"
 	"github.com/mr-tron/base58"
 )
 
-func addEndpoints(emulator *utxodb.ConfirmEmulator) {
-	t := &testingHandler{emulator}
+func addEndpoints(vtangle valuetangle.ValueTangle) {
+	t := &testingHandler{vtangle}
 
 	webapi.Server().GET("/utxodb/outputs/:address", t.handleGetAddressOutputs)
 	webapi.Server().GET("/utxodb/confirmed/:txid", t.handleIsConfirmed)
 	webapi.Server().POST("/utxodb/tx", t.handlePostTransaction)
+	webapi.Server().GET("/utxodb/requestfunds/:address", t.handleRequestFunds)
 	webapi.Server().GET("/adm/shutdown", handleShutdown)
 
 	log.Info("addded UTXODB endpoints")
@@ -33,7 +35,7 @@ func addEndpoints(emulator *utxodb.ConfirmEmulator) {
 }
 
 type testingHandler struct {
-	emulator *utxodb.ConfirmEmulator
+	vtangle valuetangle.ValueTangle
 }
 
 func (t *testingHandler) handleGetAddressOutputs(c echo.Context) error {
@@ -42,7 +44,10 @@ func (t *testingHandler) handleGetAddressOutputs(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, &apilib.GetAccountOutputsResponse{Err: err.Error()})
 	}
-	outputs := t.emulator.UtxoDB.GetAddressOutputs(addr)
+	outputs, err := t.vtangle.GetAddressOutputs(addr)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, &apilib.GetAccountOutputsResponse{Err: err.Error()})
+	}
 	log.Debugf("handleGetAddressOutputs: addr %s from utxodb %+v", addr.String(), outputs)
 
 	out := make(map[string][]apilib.OutputBalance)
@@ -82,7 +87,7 @@ func (t *testingHandler) handlePostTransaction(c echo.Context) error {
 
 	log.Debugf("handlePostTransaction:utxodb.AddTransaction: txid %s", tx.ID().String())
 
-	err = t.emulator.AddTransaction(tx, func() {
+	err = t.vtangle.PostTransaction(tx, func() {
 		connector.EventValueTransactionReceived.Trigger(tx)
 	})
 	if err != nil {
@@ -104,8 +109,23 @@ func (t *testingHandler) handleIsConfirmed(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, &apilib.IsConfirmedResponse{Err: err.Error()})
 	}
-	confirmed := t.emulator.UtxoDB.IsConfirmed(&txid)
+	confirmed, err := t.vtangle.IsConfirmed(&txid)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, &apilib.IsConfirmedResponse{Err: err.Error()})
+	}
 	log.Debugf("handleIsConfirmed: txid %s confirmed = %v", txid.String(), confirmed)
 
 	return c.JSON(http.StatusOK, &apilib.IsConfirmedResponse{Confirmed: confirmed})
+}
+
+func (t *testingHandler) handleRequestFunds(c echo.Context) error {
+	addr, err := address.FromBase58(c.Param("address"))
+	if err != nil {
+		return c.JSON(http.StatusBadRequest, &apilib.RequestFundsResponse{Err: err.Error()})
+	}
+	_, err = t.vtangle.RequestFunds(addr)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, &apilib.RequestFundsResponse{Err: err.Error()})
+	}
+	return c.JSON(http.StatusOK, &apilib.RequestFundsResponse{})
 }

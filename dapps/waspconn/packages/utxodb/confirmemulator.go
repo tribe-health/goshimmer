@@ -1,27 +1,15 @@
 package utxodb
 
 import (
-	"flag"
 	"fmt"
 	"math/rand"
 	"sync"
 	"time"
 
+	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
+	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
-	"github.com/iotaledger/goshimmer/plugins/config"
 )
-
-const (
-	WaspConnUtxodbConfirmDelay           = "waspconn.utxodbconfirmseconds"
-	WaspConnUtxodbConfirmRandomize       = "waspconn.utxodbconfirmrandomize"
-	WaspConnUtxodbConfirmFirstInConflict = "waspconn.utxodbconfirmfirst"
-)
-
-func init() {
-	flag.Int(WaspConnUtxodbConfirmDelay, 0, "emulated confirmation delay for utxodb in seconds")
-	flag.Bool(WaspConnUtxodbConfirmRandomize, false, "is confirmation time random with the mean at confirmation delay")
-	flag.Bool(WaspConnUtxodbConfirmFirstInConflict, false, "in case of conflict, confirm first transaction. Default is reject all")
-}
 
 type pendingTransaction struct {
 	confirmDeadline time.Time
@@ -30,6 +18,7 @@ type pendingTransaction struct {
 	onConfirm       func()
 }
 
+// implements valuetangle.ValueTangle by wrapping UTXODB and adding a fake confirmation delay
 type ConfirmEmulator struct {
 	UtxoDB                 *UtxoDB
 	confirmTime            time.Duration
@@ -39,19 +28,19 @@ type ConfirmEmulator struct {
 	mutex                  sync.Mutex
 }
 
-func NewConfirmEmulator() *ConfirmEmulator {
+func NewConfirmEmulator(confirmTime time.Duration, randomize bool, confirmFirstInConflict bool) *ConfirmEmulator {
 	ce := &ConfirmEmulator{
 		UtxoDB:                 New(),
 		pendingTransactions:    make(map[transaction.ID]*pendingTransaction),
-		confirmTime:            time.Duration(config.Node().GetInt(WaspConnUtxodbConfirmDelay)) * time.Second,
-		randomize:              config.Node().GetBool(WaspConnUtxodbConfirmRandomize),
-		confirmFirstInConflict: config.Node().GetBool(WaspConnUtxodbConfirmFirstInConflict),
+		confirmTime:            confirmTime,
+		randomize:              randomize,
+		confirmFirstInConflict: confirmFirstInConflict,
 	}
 	go ce.confirmLoop()
 	return ce
 }
 
-func (ce *ConfirmEmulator) AddTransaction(tx *transaction.Transaction, onConfirm func()) error {
+func (ce *ConfirmEmulator) PostTransaction(tx *transaction.Transaction, onConfirm func()) error {
 	if onConfirm == nil {
 		onConfirm = func() {}
 	}
@@ -135,4 +124,21 @@ func (ce *ConfirmEmulator) confirmLoop() {
 		}
 		ce.mutex.Unlock()
 	}
+}
+
+func (ce *ConfirmEmulator) GetAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error) {
+	return ce.UtxoDB.GetAddressOutputs(addr), nil
+}
+
+func (ce *ConfirmEmulator) IsConfirmed(txid *transaction.ID) (bool, error) {
+	return ce.UtxoDB.IsConfirmed(txid), nil
+}
+
+func (ce *ConfirmEmulator) GetTransaction(id transaction.ID) (*transaction.Transaction, error) {
+	tx, _ := ce.UtxoDB.GetTransaction(id)
+	return tx, nil
+}
+
+func (ce *ConfirmEmulator) RequestFunds(target address.Address) (*transaction.Transaction, error) {
+	return ce.UtxoDB.RequestFunds(target)
 }

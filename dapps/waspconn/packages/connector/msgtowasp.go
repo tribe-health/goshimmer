@@ -67,7 +67,11 @@ func (wconn *WaspConnector) sendAddressOutputsToWasp(address *address.Address, b
 
 // query outputs database and collects transactions containing unprocessed requests
 func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
-	outs := wconn.emulator.UtxoDB.GetAddressOutputs(*addr)
+	outs, err := wconn.vtangle.GetAddressOutputs(*addr)
+	if err != nil {
+		wconn.log.Error(err)
+		return
+	}
 	if len(outs) == 0 {
 		return
 	}
@@ -87,8 +91,12 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 		}
 	}
 	for txid := range allColors {
-		tx, ok := wconn.emulator.UtxoDB.GetTransaction(txid)
-		if !ok {
+		tx, err := wconn.vtangle.GetTransaction(txid)
+		if err != nil {
+			wconn.log.Error(err)
+			return
+		}
+		if tx == nil {
 			wconn.log.Errorf("inconsistency: can't find txid = %s", txid.String())
 			continue
 		}

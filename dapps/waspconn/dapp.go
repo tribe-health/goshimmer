@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/tangle"
@@ -11,6 +12,7 @@ import (
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/connector"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/testing"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/utxodb"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/valuetangle"
 	"github.com/iotaledger/goshimmer/packages/shutdown"
 	"github.com/iotaledger/goshimmer/plugins/config"
 	"github.com/iotaledger/hive.go/daemon"
@@ -25,11 +27,19 @@ const (
 
 	WaspConnPort          = "waspconn.port"
 	WaspConnUtxodbEnabled = "waspconn.utxodbenabled"
+
+	WaspConnUtxodbConfirmDelay           = "waspconn.utxodbconfirmseconds"
+	WaspConnUtxodbConfirmRandomize       = "waspconn.utxodbconfirmrandomize"
+	WaspConnUtxodbConfirmFirstInConflict = "waspconn.utxodbconfirmfirst"
 )
 
 func init() {
 	flag.Int(WaspConnPort, 5000, "port for Wasp connections")
 	flag.Bool(WaspConnUtxodbEnabled, true, "is utxodb mocking the value tangle enabled") // later change the default
+
+	flag.Int(WaspConnUtxodbConfirmDelay, 0, "emulated confirmation delay for utxodb in seconds")
+	flag.Bool(WaspConnUtxodbConfirmRandomize, false, "is confirmation time random with the mean at confirmation delay")
+	flag.Bool(WaspConnUtxodbConfirmFirstInConflict, false, "in case of conflict, confirm first transaction. Default is reject all")
 }
 
 var (
@@ -41,7 +51,7 @@ var (
 	)
 	log *logger.Logger
 
-	emulator *utxodb.ConfirmEmulator
+	vtangle valuetangle.ValueTangle
 )
 
 func App() *node.Plugin {
@@ -57,8 +67,12 @@ func configPlugin(plugin *node.Plugin) {
 	utxodbEnabled := config.Node().GetBool(WaspConnUtxodbEnabled)
 
 	if utxodbEnabled {
-		emulator = utxodb.NewConfirmEmulator()
-		testing.Config(plugin, log, emulator)
+		confirmTime := time.Duration(config.Node().GetInt(WaspConnUtxodbConfirmDelay)) * time.Second
+		randomize := config.Node().GetBool(WaspConnUtxodbConfirmRandomize)
+		confirmFirstInConflict := config.Node().GetBool(WaspConnUtxodbConfirmFirstInConflict)
+
+		vtangle = utxodb.NewConfirmEmulator(confirmTime, randomize, confirmFirstInConflict)
+		testing.Config(plugin, log, vtangle)
 		log.Infof("configured with UTXODB enabled")
 	} else {
 		configPluginStandard(plugin)
@@ -105,7 +119,7 @@ func runPlugin(_ *node.Plugin) {
 					return
 				}
 				log.Debugf("accepted connection from %s", conn.RemoteAddr().String())
-				connector.Run(conn, log, emulator)
+				connector.Run(conn, log, vtangle)
 			}
 		}()
 

@@ -8,7 +8,7 @@ import (
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
-	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/utxodb"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/valuetangle"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/payload"
 	"github.com/iotaledger/goshimmer/packages/shutdown"
@@ -28,15 +28,15 @@ type WaspConnector struct {
 	receiveWaspMessageClosure      *events.Closure
 	closeClosure                   *events.Closure
 	log                            *logger.Logger
-	emulator                       *utxodb.ConfirmEmulator
+	vtangle                        valuetangle.ValueTangle
 }
 
-func Run(conn net.Conn, log *logger.Logger, emulator *utxodb.ConfirmEmulator) {
+func Run(conn net.Conn, log *logger.Logger, vtangle valuetangle.ValueTangle) {
 	wconn := &WaspConnector{
 		bconn:        buffconn.NewBufferedConnection(conn, payload.MaxMessageSize),
 		exitConnChan: make(chan struct{}),
 		log:          log,
-		emulator:     emulator,
+		vtangle:      vtangle,
 	}
 	err := daemon.BackgroundWorker(wconn.Id(), func(shutdownSignal <-chan struct{}) {
 		select {
@@ -159,14 +159,18 @@ func (wconn *WaspConnector) processTransactionFromNode(tx *transaction.Transacti
 	wconn.log.Debugf("txid %s contains %d subscribed addresses", tx.ID().String(), len(subscribedOutAddresses))
 
 	for i := range subscribedOutAddresses {
-		outs := wconn.emulator.UtxoDB.GetAddressOutputs(subscribedOutAddresses[i])
-		err := wconn.sendAddressUpdateToWasp(
+		outs, err := wconn.vtangle.GetAddressOutputs(subscribedOutAddresses[i])
+		if err != nil {
+			wconn.log.Error(err)
+			continue
+		}
+		err = wconn.sendAddressUpdateToWasp(
 			&subscribedOutAddresses[i],
 			waspconn.OutputsToBalances(outs),
 			tx,
 		)
 		if err != nil {
-			wconn.log.Debug(err)
+			wconn.log.Error(err)
 		}
 	}
 }
@@ -175,9 +179,12 @@ func (wconn *WaspConnector) processTransactionFromNode(tx *transaction.Transacti
 func (wconn *WaspConnector) getTransaction(txid *transaction.ID) {
 	wconn.log.Debugf("requested transaction id = %s", txid.String())
 
-	tx, ok := wconn.emulator.UtxoDB.GetTransaction(*txid)
-	if !ok {
-		wconn.log.Debugf("!!!! utxodb.GetTransaction %s : not found", txid.String())
+	tx, err := wconn.vtangle.GetTransaction(*txid)
+	if err != nil {
+		panic(err)
+	}
+	if tx == nil {
+		wconn.log.Debugf("!!!! GetTransaction %s : not found", txid.String())
 		return
 	}
 	if err := wconn.sendTransactionToWasp(tx); err != nil {
@@ -189,7 +196,10 @@ func (wconn *WaspConnector) getTransaction(txid *transaction.ID) {
 func (wconn *WaspConnector) getAddressBalance(addr *address.Address) {
 	wconn.log.Debugf("getAddressBalance request for address: %s", addr.String())
 
-	outputs := wconn.emulator.UtxoDB.GetAddressOutputs(*addr)
+	outputs, err := wconn.vtangle.GetAddressOutputs(*addr)
+	if err != nil {
+		panic(err)
+	}
 	if len(outputs) == 0 {
 		return
 	}
@@ -208,7 +218,7 @@ func (wconn *WaspConnector) postTransaction(tx *transaction.Transaction) {
 	onConfirm := func() {
 		EventValueTransactionReceived.Trigger(tx)
 	}
-	if err := wconn.emulator.AddTransaction(tx, onConfirm); err != nil {
+	if err := wconn.vtangle.PostTransaction(tx, onConfirm); err != nil {
 		wconn.log.Warn(err)
 		return
 	}
