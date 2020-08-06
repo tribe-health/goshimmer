@@ -4,14 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/connector"
-	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/valuetangle"
-
-	"github.com/iotaledger/hive.go/events"
-
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/apilib"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/valuetangle"
 	"github.com/iotaledger/goshimmer/plugins/gracefulshutdown"
 	"github.com/iotaledger/goshimmer/plugins/webapi"
 	"github.com/labstack/echo"
@@ -28,10 +24,6 @@ func addEndpoints(vtangle valuetangle.ValueTangle) {
 	webapi.Server().GET("/adm/shutdown", handleShutdown)
 
 	log.Info("addded UTXODB endpoints")
-
-	connector.EventValueTransactionReceived.Attach(events.NewClosure(func(tx *transaction.Transaction) {
-		log.Debugf("EventValueTransactionReceived: txid = %s", tx.ID().String())
-	}))
 }
 
 type testingHandler struct {
@@ -87,9 +79,7 @@ func (t *testingHandler) handlePostTransaction(c echo.Context) error {
 
 	log.Debugf("handlePostTransaction:utxodb.AddTransaction: txid %s", tx.ID().String())
 
-	err = t.vtangle.PostTransaction(tx, func() {
-		connector.EventValueTransactionReceived.Trigger(tx)
-	})
+	err = t.vtangle.PostTransaction(tx)
 	if err != nil {
 		log.Warnf("handlePostTransaction:utxodb.AddTransaction: txid %s err = %v", tx.ID().String(), err)
 		return c.JSON(http.StatusConflict, &apilib.PostTransactionResponse{Err: err.Error()})
@@ -123,7 +113,7 @@ func (t *testingHandler) handleRequestFunds(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, &apilib.RequestFundsResponse{Err: err.Error()})
 	}
-	_, err = t.vtangle.RequestFunds(addr)
+	err = t.vtangle.RequestFunds(addr)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, &apilib.RequestFundsResponse{Err: err.Error()})
 	}

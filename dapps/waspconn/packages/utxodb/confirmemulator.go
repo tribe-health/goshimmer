@@ -15,7 +15,6 @@ type pendingTransaction struct {
 	confirmDeadline time.Time
 	tx              *transaction.Transaction
 	hasConflicts    bool
-	onConfirm       func()
 }
 
 // implements valuetangle.ValueTangle by wrapping UTXODB and adding a fake confirmation delay
@@ -26,6 +25,7 @@ type ConfirmEmulator struct {
 	confirmFirstInConflict bool
 	pendingTransactions    map[transaction.ID]*pendingTransaction
 	mutex                  sync.Mutex
+	txConfirmedCallback    func(tx *transaction.Transaction)
 }
 
 func NewConfirmEmulator(confirmTime time.Duration, randomize bool, confirmFirstInConflict bool) *ConfirmEmulator {
@@ -40,10 +40,14 @@ func NewConfirmEmulator(confirmTime time.Duration, randomize bool, confirmFirstI
 	return ce
 }
 
-func (ce *ConfirmEmulator) PostTransaction(tx *transaction.Transaction, onConfirm func()) error {
-	if onConfirm == nil {
-		onConfirm = func() {}
+func (ce *ConfirmEmulator) transactionConfirmed(tx *transaction.Transaction) {
+	if ce.txConfirmedCallback != nil {
+		ce.txConfirmedCallback(tx)
 	}
+
+}
+
+func (ce *ConfirmEmulator) PostTransaction(tx *transaction.Transaction) error {
 	ce.mutex.Lock()
 	defer ce.mutex.Unlock()
 
@@ -51,7 +55,7 @@ func (ce *ConfirmEmulator) PostTransaction(tx *transaction.Transaction, onConfir
 		if err := ce.UtxoDB.AddTransaction(tx); err != nil {
 			return err
 		}
-		onConfirm()
+		ce.transactionConfirmed(tx)
 		fmt.Printf("utxodb.ConfirmEmulator CONFIRMED IMMEDIATELY: %s\n", tx.ID().String())
 		return nil
 	}
@@ -76,7 +80,6 @@ func (ce *ConfirmEmulator) PostTransaction(tx *transaction.Transaction, onConfir
 		confirmDeadline: deadline,
 		tx:              tx,
 		hasConflicts:    false,
-		onConfirm:       onConfirm,
 	}
 	fmt.Printf("utxodb.ConfirmEmulator ADDED PENDING TRANSACTION: %s\n", tx.ID().String())
 	return nil
@@ -114,7 +117,7 @@ func (ce *ConfirmEmulator) confirmLoop() {
 			if err := ce.UtxoDB.AddTransaction(ptx.tx); err != nil {
 				fmt.Printf("!!!! utxodb.AddTransaction: %v\n", err)
 			} else {
-				ptx.onConfirm()
+				ce.transactionConfirmed(ptx.tx)
 				fmt.Printf("+++ utxodb.ConfirmEmulator: CONFIRMED %s after %v\n", txid.String(), ce.confirmTime)
 			}
 		}
@@ -134,11 +137,20 @@ func (ce *ConfirmEmulator) IsConfirmed(txid *transaction.ID) (bool, error) {
 	return ce.UtxoDB.IsConfirmed(txid), nil
 }
 
-func (ce *ConfirmEmulator) GetTransaction(id transaction.ID) (*transaction.Transaction, error) {
-	tx, _ := ce.UtxoDB.GetTransaction(id)
-	return tx, nil
+func (ce *ConfirmEmulator) GetTransaction(txid *transaction.ID) *transaction.Transaction {
+	tx, _ := ce.UtxoDB.GetTransaction(*txid)
+	return tx
 }
 
-func (ce *ConfirmEmulator) RequestFunds(target address.Address) (*transaction.Transaction, error) {
-	return ce.UtxoDB.RequestFunds(target)
+func (ce *ConfirmEmulator) RequestFunds(target address.Address) error {
+	_, err := ce.UtxoDB.RequestFunds(target)
+	return err
+}
+
+func (ce *ConfirmEmulator) OnTransactionConfirmed(cb func(tx *transaction.Transaction)) {
+	ce.txConfirmedCallback = cb
+}
+
+func (ce *ConfirmEmulator) Detach() {
+	// TODO: stop the confirmLoop
 }

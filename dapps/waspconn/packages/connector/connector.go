@@ -114,6 +114,7 @@ func (wconn *WaspConnector) attach() {
 }
 
 func (wconn *WaspConnector) detach() {
+	wconn.vtangle.Detach()
 	EventValueTransactionReceived.Detach(wconn.receiveValueTransactionClosure)
 	wconn.bconn.Events.ReceiveMessage.Detach(wconn.receiveWaspMessageClosure)
 	wconn.bconn.Events.Close.Detach(wconn.closeClosure)
@@ -179,10 +180,7 @@ func (wconn *WaspConnector) processTransactionFromNode(tx *transaction.Transacti
 func (wconn *WaspConnector) getTransaction(txid *transaction.ID) {
 	wconn.log.Debugf("requested transaction id = %s", txid.String())
 
-	tx, err := wconn.vtangle.GetTransaction(*txid)
-	if err != nil {
-		panic(err)
-	}
+	tx := wconn.vtangle.GetTransaction(txid)
 	if tx == nil {
 		wconn.log.Debugf("!!!! GetTransaction %s : not found", txid.String())
 		return
@@ -215,10 +213,7 @@ func (wconn *WaspConnector) getAddressBalance(addr *address.Address) {
 // find transaction async, parse it to SCTransaction and send to Wasp
 // TODO it is a testing implementation. In real situation transaction would be submitted to the value tangle
 func (wconn *WaspConnector) postTransaction(tx *transaction.Transaction) {
-	onConfirm := func() {
-		EventValueTransactionReceived.Trigger(tx)
-	}
-	if err := wconn.vtangle.PostTransaction(tx, onConfirm); err != nil {
+	if err := wconn.vtangle.PostTransaction(tx); err != nil {
 		wconn.log.Warn(err)
 		return
 	}

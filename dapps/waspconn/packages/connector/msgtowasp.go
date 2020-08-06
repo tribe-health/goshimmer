@@ -91,11 +91,7 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 		}
 	}
 	for txid := range allColors {
-		tx, err := wconn.vtangle.GetTransaction(txid)
-		if err != nil {
-			wconn.log.Error(err)
-			return
-		}
+		tx := wconn.vtangle.GetTransaction(&txid)
 		if tx == nil {
 			wconn.log.Errorf("inconsistency: can't find txid = %s", txid.String())
 			continue

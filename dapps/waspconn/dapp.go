@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/iotaledger/goshimmer/dapps/valuetransfers"
-	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/tangle"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/connector"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/testing"
@@ -16,7 +14,6 @@ import (
 	"github.com/iotaledger/goshimmer/packages/shutdown"
 	"github.com/iotaledger/goshimmer/plugins/config"
 	"github.com/iotaledger/hive.go/daemon"
-	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/logger"
 	"github.com/iotaledger/hive.go/node"
 	flag "github.com/spf13/pflag"
@@ -75,24 +72,12 @@ func configPlugin(plugin *node.Plugin) {
 		testing.Config(plugin, log, vtangle)
 		log.Infof("configured with UTXODB enabled")
 	} else {
-		configPluginStandard(plugin)
+		vtangle = valuetangle.NewRealValueTangle()
 		log.Infof("configured for ValueTangle")
 	}
-}
-
-func configPluginStandard(_ *node.Plugin) {
-	valuetransfers.Tangle().Events.TransactionConfirmed.Attach(events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata) {
-		// TODO forward to connector.EventValueTransactionReceived
-		tx := ctx.Unwrap() // ??
-		if tx != nil {
-			connector.EventValueTransactionReceived.Trigger(tx)
-		}
-	}))
-
-	connector.EventValueTransactionReceived.Attach(events.NewClosure(func(tx *transaction.Transaction) {
-		log.Debugf("EventValueTransactionReceived: txid = %s", tx.ID().String())
-	}))
-
+	vtangle.OnTransactionConfirmed(func(tx *transaction.Transaction) {
+		connector.EventValueTransactionReceived.Trigger(tx)
+	})
 }
 
 func runPlugin(_ *node.Plugin) {
