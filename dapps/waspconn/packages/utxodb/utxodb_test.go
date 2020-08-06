@@ -42,28 +42,16 @@ func TestRequestFunds(t *testing.T) {
 	u.checkLedgerBalance()
 }
 
-//
-//func TestTransferAndBook(t *testing.T) {
-//	tx, err := DistributeIotas(1000000, GetGenesisAddress(), GetAddress(1))
-//	assert.Equal(t, err, nil)
-//
-//	err = AddTransaction(tx)
-//	assert.Equal(t, err, nil)
-//
-//	tx, err = DistributeIotas(1000000, GetGenesisAddress(), GetAddress(2))
-//	assert.Equal(t, err, nil)
-//
-//	err = AddTransaction(tx)
-//	assert.Equal(t, err, nil)
-//
-//	tx, err = DistributeIotas(1000000, GetGenesisAddress(), GetAddress(3))
-//	assert.Equal(t, err, nil)
-//
-//	err = AddTransaction(tx)
-//	assert.Equal(t, err, nil)
-//
-//	stats := GetLedgerStats()
-//	for addr, st := range stats {
-//		t.Logf("%s: balance %d, num outputs %d", addr.String(), st.Total, st.NumOutputs)
-//	}
-//}
+func TestTransferAndBook(t *testing.T) {
+	u := New()
+
+	addr := NewSigScheme("C6hPhCS2E2dKUGS3qj4264itKXohwgL3Lm2fNxayAKr", 0).Address()
+	tx, err := u.RequestFunds(addr)
+	assert.NoError(t, err)
+	assert.EqualValues(t, supply-RequestFundsAmount, getBalance(u, u.GetGenesisSigScheme().Address()))
+	assert.EqualValues(t, RequestFundsAmount, getBalance(u, addr))
+	u.checkLedgerBalance()
+
+	err = u.AddTransaction(tx)
+	assert.Error(t, err)
+}

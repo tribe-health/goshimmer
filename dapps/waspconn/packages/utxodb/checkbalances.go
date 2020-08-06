@@ -53,7 +53,7 @@ func collectOutputBalances(tx *transaction.Transaction) (map[balance.Color]int64
 			if _, ok := ret[bal.Color]; !ok {
 				ret[bal.Color] = 0
 			}
-			ret[bal.Color] += bal.Value
+			ret[bal.Color] = ret[bal.Color] + bal.Value
 			retsum += bal.Value
 		}
 		return true
@@ -68,7 +68,7 @@ func (u *UtxoDB) CheckInputsOutputs(tx *transaction.Transaction) error {
 	}
 	outbals, outsum := collectOutputBalances(tx)
 	if insum != outsum {
-		return fmt.Errorf("unequal totals: %d != %d", insum, outsum)
+		return errors.New("unequal totals")
 	}
 
 	for col, inb := range inbals {
