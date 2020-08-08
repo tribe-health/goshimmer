@@ -18,11 +18,11 @@ import (
 
 // interface between waspconn and the value tangle
 type ValueTangle interface {
-	GetAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error)
-	PostTransaction(tx *transaction.Transaction) error
+	GetConfirmedAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error)
+	GetConfirmedTransaction(txid *transaction.ID) *transaction.Transaction
 	OnTransactionConfirmed(func(tx *transaction.Transaction))
 	IsConfirmed(txid *transaction.ID) (bool, error)
-	GetTransaction(txid *transaction.ID) *transaction.Transaction
+	PostTransaction(tx *transaction.Transaction) error
 	RequestFunds(target address.Address) error
 	Detach()
 }
@@ -54,7 +54,8 @@ func (v *valuetangle) OnTransactionConfirmed(cb func(tx *transaction.Transaction
 	v.txConfirmedCallback = cb
 }
 
-func (v *valuetangle) GetAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error) {
+// FIXME we only need CONFIRMED transactions and outputs
+func (v *valuetangle) GetConfirmedAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error) {
 	ret := make(map[transaction.OutputID][]*balance.Balance)
 	valuetransfers.Tangle().OutputsOnAddress(addr).Consume(func(output *tangle.Output) {
 		if output.ConsumerCount() == 0 {
@@ -62,6 +63,16 @@ func (v *valuetangle) GetAddressOutputs(addr address.Address) (map[transaction.O
 		}
 	})
 	return ret, nil
+}
+
+// FIXME we only need CONFIRMED transactions and outputs. Otherwise transaction does not exists for Wasp
+func (v *valuetangle) GetConfirmedTransaction(txid *transaction.ID) *transaction.Transaction {
+	cachedTxnObj := valuetransfers.Tangle().Transaction(*txid)
+	defer cachedTxnObj.Release()
+	if !cachedTxnObj.Exists() {
+		return nil
+	}
+	return cachedTxnObj.Unwrap()
 }
 
 func (v *valuetangle) PostTransaction(tx *transaction.Transaction) error {
@@ -83,15 +94,6 @@ func (v *valuetangle) IsConfirmed(txid *transaction.ID) (bool, error) {
 		return false, fmt.Errorf("Transaction not found")
 	}
 	return cachedTxnMetaObj.Unwrap().Confirmed(), nil
-}
-
-func (v *valuetangle) GetTransaction(txid *transaction.ID) *transaction.Transaction {
-	cachedTxnObj := valuetransfers.Tangle().Transaction(*txid)
-	defer cachedTxnObj.Release()
-	if !cachedTxnObj.Exists() {
-		return nil
-	}
-	return cachedTxnObj.Unwrap()
 }
 
 func (v *valuetangle) RequestFunds(target address.Address) error {

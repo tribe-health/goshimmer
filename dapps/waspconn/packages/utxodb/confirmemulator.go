@@ -44,7 +44,6 @@ func (ce *ConfirmEmulator) transactionConfirmed(tx *transaction.Transaction) {
 	if ce.txConfirmedCallback != nil {
 		ce.txConfirmedCallback(tx)
 	}
-
 }
 
 func (ce *ConfirmEmulator) PostTransaction(tx *transaction.Transaction) error {
@@ -129,7 +128,7 @@ func (ce *ConfirmEmulator) confirmLoop() {
 	}
 }
 
-func (ce *ConfirmEmulator) GetAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error) {
+func (ce *ConfirmEmulator) GetConfirmedAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error) {
 	return ce.UtxoDB.GetAddressOutputs(addr), nil
 }
 
@@ -137,7 +136,7 @@ func (ce *ConfirmEmulator) IsConfirmed(txid *transaction.ID) (bool, error) {
 	return ce.UtxoDB.IsConfirmed(txid), nil
 }
 
-func (ce *ConfirmEmulator) GetTransaction(txid *transaction.ID) *transaction.Transaction {
+func (ce *ConfirmEmulator) GetConfirmedTransaction(txid *transaction.ID) *transaction.Transaction {
 	tx, _ := ce.UtxoDB.GetTransaction(*txid)
 	return tx
 }

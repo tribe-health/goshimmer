@@ -160,7 +160,7 @@ func (wconn *WaspConnector) processTransactionFromNode(tx *transaction.Transacti
 	wconn.log.Debugf("txid %s contains %d subscribed addresses", tx.ID().String(), len(subscribedOutAddresses))
 
 	for i := range subscribedOutAddresses {
-		outs, err := wconn.vtangle.GetAddressOutputs(subscribedOutAddresses[i])
+		outs, err := wconn.vtangle.GetConfirmedAddressOutputs(subscribedOutAddresses[i])
 		if err != nil {
 			wconn.log.Error(err)
 			continue
@@ -180,9 +180,9 @@ func (wconn *WaspConnector) processTransactionFromNode(tx *transaction.Transacti
 func (wconn *WaspConnector) getTransaction(txid *transaction.ID) {
 	wconn.log.Debugf("requested transaction id = %s", txid.String())
 
-	tx := wconn.vtangle.GetTransaction(txid)
+	tx := wconn.vtangle.GetConfirmedTransaction(txid)
 	if tx == nil {
-		wconn.log.Debugf("!!!! GetTransaction %s : not found", txid.String())
+		wconn.log.Debugf("!!!! GetConfirmedTransaction %s : not found", txid.String())
 		return
 	}
 	if err := wconn.sendTransactionToWasp(tx); err != nil {
@@ -194,7 +194,7 @@ func (wconn *WaspConnector) getTransaction(txid *transaction.ID) {
 func (wconn *WaspConnector) getAddressBalance(addr *address.Address) {
 	wconn.log.Debugf("getAddressBalance request for address: %s", addr.String())
 
-	outputs, err := wconn.vtangle.GetAddressOutputs(*addr)
+	outputs, err := wconn.vtangle.GetConfirmedAddressOutputs(*addr)
 	if err != nil {
 		panic(err)
 	}

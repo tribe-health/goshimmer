@@ -36,7 +36,7 @@ func (t *testingHandler) handleGetAddressOutputs(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusBadRequest, &apilib.GetAccountOutputsResponse{Err: err.Error()})
 	}
-	outputs, err := t.vtangle.GetAddressOutputs(addr)
+	outputs, err := t.vtangle.GetConfirmedAddressOutputs(addr)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, &apilib.GetAccountOutputsResponse{Err: err.Error()})
 	}
