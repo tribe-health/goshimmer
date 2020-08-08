@@ -76,12 +76,18 @@ All configuration values for the WaspConn plugin are in the `waspconn` portion o
 ```
   "waspconn": {
     "port": 5000,
+    "utxodbenabled": true,
     "utxodbconfirmseconds": 0,
     "utxodbconfirmrandomize": false,
     "utxodbconfirmfirst": true
   }
 ```
 - `waspconn.port` specifies port where WaspCon is listening for new Wasp connections.
+- `waspconn.utxodbenabled` is a boolean flag which specifies if WaspConn is mocking the value tangle (`true`) or it 
+is using the ValueTangle provided by Goshimmer.
+
+If `waspconn.utxodbenabled: true` the following values configure parameters of mocked of the Value Tangle:
+
 - `waspconn.utxodbconfirmseconds` specifies emulated confirmation time. When new transaction is posted, 
 specified amount of seconds it is in `pending` state, and only after the confirmation time it is included 
 into the `utxodb` ledger.
