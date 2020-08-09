@@ -76,7 +76,7 @@ func configPlugin(plugin *node.Plugin) {
 		log.Infof("configured for ValueTangle")
 	}
 	vtangle.OnTransactionConfirmed(func(tx *transaction.Transaction) {
-		connector.EventValueTransactionReceived.Trigger(tx)
+		connector.EventValueTransactionConfirmed.Trigger(tx)
 	})
 }
 

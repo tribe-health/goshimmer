@@ -5,10 +5,10 @@ import (
 	"github.com/iotaledger/hive.go/events"
 )
 
-var EventValueTransactionReceived *events.Event
+var EventValueTransactionConfirmed *events.Event
 
 func init() {
-	EventValueTransactionReceived = events.NewEvent(func(handler interface{}, params ...interface{}) {
+	EventValueTransactionConfirmed = events.NewEvent(func(handler interface{}, params ...interface{}) {
 		handler.(func(_ *transaction.Transaction))(params[0].(*transaction.Transaction))
 	})
 }

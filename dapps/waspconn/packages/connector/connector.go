@@ -19,16 +19,16 @@ import (
 )
 
 type WaspConnector struct {
-	id                             string
-	bconn                          *buffconn.BufferedConnection
-	subscriptions                  map[address.Address]int
-	inTxChan                       chan *transaction.Transaction
-	exitConnChan                   chan struct{}
-	receiveValueTransactionClosure *events.Closure
-	receiveWaspMessageClosure      *events.Closure
-	closeClosure                   *events.Closure
-	log                            *logger.Logger
-	vtangle                        valuetangle.ValueTangle
+	id                                      string
+	bconn                                   *buffconn.BufferedConnection
+	subscriptions                           map[address.Address]int
+	inTxChan                                chan *transaction.Transaction
+	exitConnChan                            chan struct{}
+	receiveConfirmedValueTransactionClosure *events.Closure
+	receiveWaspMessageClosure               *events.Closure
+	closeClosure                            *events.Closure
+	log                                     *logger.Logger
+	vtangle                                 valuetangle.ValueTangle
 }
 
 func Run(conn net.Conn, log *logger.Logger, vtangle valuetangle.ValueTangle) {
@@ -77,7 +77,7 @@ func (wconn *WaspConnector) attach() {
 	wconn.subscriptions = make(map[address.Address]int)
 	wconn.inTxChan = make(chan *transaction.Transaction)
 
-	wconn.receiveValueTransactionClosure = events.NewClosure(func(vtx *transaction.Transaction) {
+	wconn.receiveConfirmedValueTransactionClosure = events.NewClosure(func(vtx *transaction.Transaction) {
 		wconn.inTxChan <- vtx
 	})
 
@@ -90,7 +90,7 @@ func (wconn *WaspConnector) attach() {
 	})
 
 	// attach connector to the flow of incoming value transactions
-	EventValueTransactionReceived.Attach(wconn.receiveValueTransactionClosure)
+	EventValueTransactionConfirmed.Attach(wconn.receiveConfirmedValueTransactionClosure)
 
 	wconn.bconn.Events.ReceiveMessage.Attach(wconn.receiveWaspMessageClosure)
 	wconn.bconn.Events.Close.Attach(wconn.closeClosure)
@@ -108,14 +108,14 @@ func (wconn *WaspConnector) attach() {
 	// read incoming pre-filtered transactions from node
 	go func() {
 		for vtx := range wconn.inTxChan {
-			wconn.processTransactionFromNode(vtx)
+			wconn.processConfirmedTransactionFromNode(vtx)
 		}
 	}()
 }
 
 func (wconn *WaspConnector) detach() {
 	wconn.vtangle.Detach()
-	EventValueTransactionReceived.Detach(wconn.receiveValueTransactionClosure)
+	EventValueTransactionConfirmed.Detach(wconn.receiveConfirmedValueTransactionClosure)
 	wconn.bconn.Events.ReceiveMessage.Detach(wconn.receiveWaspMessageClosure)
 	wconn.bconn.Events.Close.Detach(wconn.closeClosure)
 
@@ -138,11 +138,11 @@ func (wconn *WaspConnector) isSubscribed(addr *address.Address) bool {
 	return ok
 }
 
-// process parsed SC transaction incoming from the node.
-// Forward to wasp if subscribed
-func (wconn *WaspConnector) processTransactionFromNode(tx *transaction.Transaction) {
+// processConfirmedTransactionFromNode receives only confirmed transactions
+// it parses SC transaction incoming from the node. Forwards it to Wasp if subscribed
+func (wconn *WaspConnector) processConfirmedTransactionFromNode(tx *transaction.Transaction) {
 	// determine if transaction contains any of subscribed addresses in its outputs
-	wconn.log.Debugw("processTransactionFromNode", "txid", tx.ID().String())
+	wconn.log.Debugw("processConfirmedTransactionFromNode", "txid", tx.ID().String())
 
 	subscribedOutAddresses := make([]address.Address, 0)
 	tx.Outputs().ForEach(func(addr address.Address, _ []*balance.Balance) bool {
@@ -165,6 +165,7 @@ func (wconn *WaspConnector) processTransactionFromNode(tx *transaction.Transacti
 			wconn.log.Error(err)
 			continue
 		}
+		// for each subscribed address send its confirmed UTXOs to Wasp as separate message
 		err = wconn.sendAddressUpdateToWasp(
 			&subscribedOutAddresses[i],
 			waspconn.OutputsToBalances(outs),
@@ -210,12 +211,10 @@ func (wconn *WaspConnector) getAddressBalance(addr *address.Address) {
 	}
 }
 
-// find transaction async, parse it to SCTransaction and send to Wasp
-// TODO it is a testing implementation. In real situation transaction would be submitted to the value tangle
 func (wconn *WaspConnector) postTransaction(tx *transaction.Transaction) {
 	if err := wconn.vtangle.PostTransaction(tx); err != nil {
 		wconn.log.Warn(err)
 		return
 	}
-	wconn.log.Debugf("++++ Added transaction  %s", tx.ID().String())
+	wconn.log.Debugf("Posted transaction %s", tx.ID().String())
 }
