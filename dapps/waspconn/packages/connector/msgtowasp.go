@@ -46,8 +46,11 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 	return nil
 }
 
-func (wconn *WaspConnector) sendTransactionToWasp(vtx *transaction.Transaction) error {
-	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeTransactionMsg{vtx})
+func (wconn *WaspConnector) sendTransactionToWasp(vtx *transaction.Transaction, confirmed bool) error {
+	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeTransactionMsg{
+		Tx:        vtx,
+		Confirmed: confirmed,
+	})
 }
 
 func (wconn *WaspConnector) sendAddressUpdateToWasp(address *address.Address, balances map[transaction.ID][]*balance.Balance, tx *transaction.Transaction) error {
@@ -91,8 +94,8 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 		}
 	}
 	for txid := range allColors {
-		tx := wconn.vtangle.GetConfirmedTransaction(&txid)
-		if tx == nil {
+		tx, confirmed := wconn.vtangle.GetTransaction(&txid)
+		if tx == nil || !confirmed {
 			wconn.log.Errorf("inconsistency: can't find txid = %s", txid.String())
 			continue
 		}

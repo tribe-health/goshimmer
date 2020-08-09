@@ -136,9 +136,8 @@ func (ce *ConfirmEmulator) IsConfirmed(txid *transaction.ID) (bool, error) {
 	return ce.UtxoDB.IsConfirmed(txid), nil
 }
 
-func (ce *ConfirmEmulator) GetConfirmedTransaction(txid *transaction.ID) *transaction.Transaction {
-	tx, _ := ce.UtxoDB.GetTransaction(*txid)
-	return tx
+func (ce *ConfirmEmulator) GetTransaction(txid *transaction.ID) (*transaction.Transaction, bool) {
+	return ce.UtxoDB.GetTransaction(*txid)
 }
 
 func (ce *ConfirmEmulator) RequestFunds(target address.Address) error {

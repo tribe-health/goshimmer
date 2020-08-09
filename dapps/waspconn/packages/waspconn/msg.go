@@ -59,7 +59,8 @@ type WaspToNodeSetIdMsg struct {
 }
 
 type WaspFromNodeTransactionMsg struct {
-	Tx *transaction.Transaction
+	Tx        *transaction.Transaction
+	Confirmed bool
 }
 
 type WaspFromNodeAddressUpdateMsg struct {
@@ -291,7 +292,13 @@ func (msg *WaspToNodeSetIdMsg) Read(r io.Reader) error {
 }
 
 func (msg *WaspFromNodeTransactionMsg) Write(w io.Writer) error {
-	return WriteBytes32(w, msg.Tx.Bytes())
+	if err := WriteBytes32(w, msg.Tx.Bytes()); err != nil {
+		return err
+	}
+	if err := WriteBoolByte(w, msg.Confirmed); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (msg *WaspFromNodeTransactionMsg) Read(r io.Reader) error {
@@ -299,8 +306,13 @@ func (msg *WaspFromNodeTransactionMsg) Read(r io.Reader) error {
 	if err != nil {
 		return err
 	}
-	msg.Tx, _, err = transaction.FromBytes(data)
-	return err
+	if msg.Tx, _, err = transaction.FromBytes(data); err != nil {
+		return err
+	}
+	if err = ReadBoolByte(r, &msg.Confirmed); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (msg *WaspFromNodeAddressUpdateMsg) Write(w io.Writer) error {

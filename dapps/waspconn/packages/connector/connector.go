@@ -180,12 +180,12 @@ func (wconn *WaspConnector) processTransactionFromNode(tx *transaction.Transacti
 func (wconn *WaspConnector) getTransaction(txid *transaction.ID) {
 	wconn.log.Debugf("requested transaction id = %s", txid.String())
 
-	tx := wconn.vtangle.GetConfirmedTransaction(txid)
+	tx, confirmed := wconn.vtangle.GetTransaction(txid)
 	if tx == nil {
-		wconn.log.Debugf("!!!! GetConfirmedTransaction %s : not found", txid.String())
+		wconn.log.Debugf("!!!! GetTransaction %s : not found", txid.String())
 		return
 	}
-	if err := wconn.sendTransactionToWasp(tx); err != nil {
+	if err := wconn.sendTransactionToWasp(tx, confirmed); err != nil {
 		wconn.log.Debugf("!!!! sendTransactionToWasp: %v", err)
 		return
 	}

@@ -19,7 +19,7 @@ import (
 // interface between waspconn and the value tangle
 type ValueTangle interface {
 	GetConfirmedAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error)
-	GetConfirmedTransaction(txid *transaction.ID) *transaction.Transaction
+	GetTransaction(txid *transaction.ID) (*transaction.Transaction, bool)
 	OnTransactionConfirmed(func(tx *transaction.Transaction))
 	IsConfirmed(txid *transaction.ID) (bool, error)
 	PostTransaction(tx *transaction.Transaction) error
@@ -54,25 +54,40 @@ func (v *valuetangle) OnTransactionConfirmed(cb func(tx *transaction.Transaction
 	v.txConfirmedCallback = cb
 }
 
-// FIXME we only need CONFIRMED transactions and outputs
+// GetConfirmedAddressOutputs return confirmed UTXOs for address
 func (v *valuetangle) GetConfirmedAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error) {
 	ret := make(map[transaction.OutputID][]*balance.Balance)
 	valuetransfers.Tangle().OutputsOnAddress(addr).Consume(func(output *tangle.Output) {
-		if output.ConsumerCount() == 0 {
+		if output.Confirmed() && output.ConsumerCount() == 0 {
 			ret[output.ID()] = output.Balances()
 		}
 	})
 	return ret, nil
 }
 
-// FIXME we only need CONFIRMED transactions and outputs. Otherwise transaction does not exists for Wasp
-func (v *valuetangle) GetConfirmedTransaction(txid *transaction.ID) *transaction.Transaction {
+// GetTransaction returns transaction and its simplified inclusion state, the confirmation flag
+// if transaction does not exist of it is rejected, return (nil, false)
+func (v *valuetangle) GetTransaction(txid *transaction.ID) (*transaction.Transaction, bool) {
+	// retrieve transaction
 	cachedTxnObj := valuetransfers.Tangle().Transaction(*txid)
 	defer cachedTxnObj.Release()
+
 	if !cachedTxnObj.Exists() {
-		return nil
+		return nil, false
 	}
-	return cachedTxnObj.Unwrap()
+
+	// retrieve metadata
+	cachedTxnMetaObj := valuetransfers.Tangle().TransactionMetadata(*txid)
+	defer cachedTxnMetaObj.Release()
+
+	if !cachedTxnMetaObj.Exists() {
+		return nil, false
+	}
+	if cachedTxnMetaObj.Unwrap().Rejected() {
+		// if it is rejected, it for wasp it does not exist
+		return nil, false
+	}
+	return cachedTxnObj.Unwrap(), cachedTxnMetaObj.Unwrap().Confirmed()
 }
 
 func (v *valuetangle) PostTransaction(tx *transaction.Transaction) error {
