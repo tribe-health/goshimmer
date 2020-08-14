@@ -26,7 +26,6 @@ type WaspConnector struct {
 	exitConnChan                            chan struct{}
 	receiveConfirmedValueTransactionClosure *events.Closure
 	receiveWaspMessageClosure               *events.Closure
-	closeClosure                            *events.Closure
 	log                                     *logger.Logger
 	vtangle                                 valuetangle.ValueTangle
 }
@@ -41,11 +40,11 @@ func Run(conn net.Conn, log *logger.Logger, vtangle valuetangle.ValueTangle) {
 	err := daemon.BackgroundWorker(wconn.Id(), func(shutdownSignal <-chan struct{}) {
 		select {
 		case <-shutdownSignal:
-			wconn.log.Infof("shutdown signal received")
+			wconn.log.Infof("shutdown signal received..")
 			_ = wconn.bconn.Close()
 
 		case <-wconn.exitConnChan:
-			wconn.log.Infof("closing..")
+			wconn.log.Infof("closing connection..")
 			_ = wconn.bconn.Close()
 		}
 
@@ -54,7 +53,7 @@ func Run(conn net.Conn, log *logger.Logger, vtangle valuetangle.ValueTangle) {
 
 	if err != nil {
 		close(wconn.exitConnChan)
-		wconn.log.Errorf("can't start a deamon")
+		wconn.log.Errorf("can't start deamon")
 		return
 	}
 	wconn.attach()
@@ -85,15 +84,10 @@ func (wconn *WaspConnector) attach() {
 		wconn.processMsgDataFromWasp(data)
 	})
 
-	wconn.closeClosure = events.NewClosure(func() {
-		wconn.log.Info("Wasp connection closed")
-	})
-
 	// attach connector to the flow of incoming value transactions
 	EventValueTransactionConfirmed.Attach(wconn.receiveConfirmedValueTransactionClosure)
 
 	wconn.bconn.Events.ReceiveMessage.Attach(wconn.receiveWaspMessageClosure)
-	wconn.bconn.Events.Close.Attach(wconn.closeClosure)
 
 	// read connection thread
 	go func() {
@@ -117,7 +111,6 @@ func (wconn *WaspConnector) detach() {
 	wconn.vtangle.Detach()
 	EventValueTransactionConfirmed.Detach(wconn.receiveConfirmedValueTransactionClosure)
 	wconn.bconn.Events.ReceiveMessage.Detach(wconn.receiveWaspMessageClosure)
-	wconn.bconn.Events.Close.Detach(wconn.closeClosure)
 
 	close(wconn.inTxChan)
 	_ = wconn.bconn.Close()
@@ -165,7 +158,6 @@ func (wconn *WaspConnector) processConfirmedTransactionFromNode(tx *transaction.
 			wconn.log.Error(err)
 			continue
 		}
-		// for each subscribed address send its confirmed UTXOs to Wasp as separate message
 		err = wconn.sendAddressUpdateToWasp(
 			&subscribedOutAddresses[i],
 			waspconn.OutputsToBalances(outs),
@@ -173,6 +165,9 @@ func (wconn *WaspConnector) processConfirmedTransactionFromNode(tx *transaction.
 		)
 		if err != nil {
 			wconn.log.Error(err)
+		} else {
+			wconn.log.Infof("new confirmed tx to Wasp: subscribed addr: %s, txid: %s",
+				subscribedOutAddresses[i].String(), tx.ID().String())
 		}
 	}
 }

@@ -54,9 +54,6 @@ func (wconn *WaspConnector) sendTransactionToWasp(vtx *transaction.Transaction, 
 }
 
 func (wconn *WaspConnector) sendAddressUpdateToWasp(addr *address.Address, balances map[transaction.ID][]*balance.Balance, tx *transaction.Transaction) error {
-	wconn.log.Infof("subscribed address update --> Wasp. addr: %s, txid: %s",
-		addr.String(), tx.ID().String())
-
 	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeAddressUpdateMsg{
 		Address:  *addr,
 		Balances: balances,
@@ -92,7 +89,6 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 			if col == balance.ColorNew {
 				panic("unexpected balance.ColorNew")
 			}
-
 			allColors[(transaction.ID)(b.Color)] = true
 		}
 	}
@@ -103,7 +99,10 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 			continue
 		}
 		if err := wconn.sendAddressUpdateToWasp(addr, outputs, tx); err != nil {
-			wconn.log.Debug(err)
+			wconn.log.Error(err)
+		} else {
+			wconn.log.Infof("backlog tx to Wasp. subscribed addr: %s, txid: %s",
+				addr.String(), tx.ID().String())
 		}
 	}
 }
