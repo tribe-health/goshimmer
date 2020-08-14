@@ -39,7 +39,9 @@ type WaspPingMsg struct {
 }
 
 type WaspToNodeTransactionMsg struct {
-	Tx *transaction.Transaction
+	Tx        *transaction.Transaction // transaction posted
+	SCAddress address.Address          // smart contract which posted
+	Leader    uint16                   // leader index
 }
 
 type WaspToNodeSubscribeMsg struct {
@@ -216,7 +218,16 @@ func (msg *WaspPingMsg) Read(r io.Reader) error {
 }
 
 func (msg *WaspToNodeTransactionMsg) Write(w io.Writer) error {
-	return WriteBytes32(w, msg.Tx.Bytes())
+	if err := WriteBytes32(w, msg.Tx.Bytes()); err != nil {
+		return err
+	}
+	if _, err := w.Write(msg.SCAddress[:]); err != nil {
+		return err
+	}
+	if err := WriteUint16(w, msg.Leader); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (msg *WaspToNodeTransactionMsg) Read(r io.Reader) error {
@@ -226,7 +237,16 @@ func (msg *WaspToNodeTransactionMsg) Read(r io.Reader) error {
 		return err
 	}
 	msg.Tx, _, err = transaction.FromBytes(data)
-	return err
+	if err != nil {
+		return err
+	}
+	if err := ReadAddress(r, &msg.SCAddress); err != nil {
+		return err
+	}
+	if err := ReadUint16(r, &msg.Leader); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (msg *WaspToNodeSubscribeMsg) Write(w io.Writer) error {

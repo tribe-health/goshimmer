@@ -53,9 +53,12 @@ func (wconn *WaspConnector) sendTransactionToWasp(vtx *transaction.Transaction, 
 	})
 }
 
-func (wconn *WaspConnector) sendAddressUpdateToWasp(address *address.Address, balances map[transaction.ID][]*balance.Balance, tx *transaction.Transaction) error {
+func (wconn *WaspConnector) sendAddressUpdateToWasp(addr *address.Address, balances map[transaction.ID][]*balance.Balance, tx *transaction.Transaction) error {
+	wconn.log.Infof("subscribed address update --> Wasp. addr: %s, txid: %s",
+		addr.String(), tx.ID().String())
+
 	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeAddressUpdateMsg{
-		Address:  *address,
+		Address:  *addr,
 		Balances: balances,
 		Tx:       tx,
 	})

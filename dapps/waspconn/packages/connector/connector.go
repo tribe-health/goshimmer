@@ -211,10 +211,11 @@ func (wconn *WaspConnector) getAddressBalance(addr *address.Address) {
 	}
 }
 
-func (wconn *WaspConnector) postTransaction(tx *transaction.Transaction) {
+func (wconn *WaspConnector) postTransaction(tx *transaction.Transaction, fromSC *address.Address, fromLeader uint16) {
 	if err := wconn.vtangle.PostTransaction(tx); err != nil {
 		wconn.log.Warn(err)
 		return
 	}
-	wconn.log.Debugf("Posted transaction %s", tx.ID().String())
+	wconn.log.Infof("Posted transaction from Wasp. txid: %s, from sc: %s, from leader: %d",
+		tx.ID().String(), fromSC.String(), fromLeader)
 }
