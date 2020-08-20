@@ -21,6 +21,9 @@ type ValueTangle interface {
 	GetConfirmedAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error)
 	GetTransaction(txid *transaction.ID) (*transaction.Transaction, bool)
 	OnTransactionConfirmed(func(tx *transaction.Transaction))
+	OnTransactionBooked(func(tx *transaction.Transaction, decisionPending bool))
+	OnTransactionFinalized(func(tx *transaction.Transaction))
+	OnTransactionRejected(func(tx *transaction.Transaction))
 	IsConfirmed(txid *transaction.ID) (bool, error)
 	PostTransaction(tx *transaction.Transaction) error
 	RequestFunds(target address.Address) error
@@ -30,28 +33,84 @@ type ValueTangle interface {
 type valuetangle struct {
 	txConfirmedClosure  *events.Closure
 	txConfirmedCallback func(tx *transaction.Transaction)
+
+	txBookedClosure  *events.Closure
+	txBookedCallback func(tx *transaction.Transaction, decisionPending bool)
+
+	txFinalizedClosure  *events.Closure
+	txFinalizedCallback func(tx *transaction.Transaction)
+
+	txRejectedClosure  *events.Closure
+	txRejectedCallback func(tx *transaction.Transaction)
 }
 
 func NewRealValueTangle() *valuetangle {
 	v := &valuetangle{}
 
 	v.txConfirmedClosure = events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata) {
-		tx := ctx.Unwrap()
-		if tx != nil && v.txConfirmedCallback != nil {
+		if v.txConfirmedCallback == nil {
+			return
+		}
+		if tx := ctx.Unwrap(); tx != nil {
 			v.txConfirmedCallback(tx)
 		}
 	})
 	valuetransfers.Tangle().Events.TransactionConfirmed.Attach(v.txConfirmedClosure)
+
+	v.txBookedClosure = events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata, decisionPending bool) {
+		if v.txBookedCallback == nil {
+			return
+		}
+		if tx := ctx.Unwrap(); tx != nil {
+			v.txBookedCallback(tx, decisionPending)
+		}
+	})
+	valuetransfers.Tangle().Events.TransactionBooked.Attach(v.txBookedClosure)
+
+	v.txFinalizedClosure = events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata) {
+		if v.txFinalizedCallback == nil {
+			return
+		}
+		if tx := ctx.Unwrap(); tx != nil {
+			v.txFinalizedCallback(tx)
+		}
+	})
+	valuetransfers.Tangle().Events.TransactionFinalized.Attach(v.txFinalizedClosure)
+
+	v.txRejectedClosure = events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata) {
+		if v.txRejectedCallback == nil {
+			return
+		}
+		if tx := ctx.Unwrap(); tx != nil {
+			v.txRejectedCallback(tx)
+		}
+	})
+	valuetransfers.Tangle().Events.TransactionRejected.Attach(v.txRejectedClosure)
 
 	return v
 }
 
 func (v *valuetangle) Detach() {
 	valuetransfers.Tangle().Events.TransactionConfirmed.Detach(v.txConfirmedClosure)
+	valuetransfers.Tangle().Events.TransactionBooked.Detach(v.txBookedClosure)
+	valuetransfers.Tangle().Events.TransactionFinalized.Detach(v.txFinalizedClosure)
+	valuetransfers.Tangle().Events.TransactionRejected.Detach(v.txRejectedClosure)
 }
 
 func (v *valuetangle) OnTransactionConfirmed(cb func(tx *transaction.Transaction)) {
 	v.txConfirmedCallback = cb
+}
+
+func (v *valuetangle) OnTransactionBooked(cb func(tx *transaction.Transaction, decisionPending bool)) {
+	v.txBookedCallback = cb
+}
+
+func (v *valuetangle) OnTransactionFinalized(cb func(tx *transaction.Transaction)) {
+	v.txFinalizedCallback = cb
+}
+
+func (v *valuetangle) OnTransactionRejected(cb func(tx *transaction.Transaction)) {
+	v.txRejectedCallback = cb
 }
 
 // GetConfirmedAddressOutputs return confirmed UTXOs for address

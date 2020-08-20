@@ -5,6 +5,8 @@ import (
 	"github.com/iotaledger/hive.go/events"
 )
 
+// EventValueTransactionConfirmed global event.
+// Triggered whenever new confirmed transaction is confirmed
 var EventValueTransactionConfirmed *events.Event
 
 func init() {

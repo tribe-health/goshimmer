@@ -76,7 +76,17 @@ func configPlugin(plugin *node.Plugin) {
 		log.Infof("configured for ValueTangle")
 	}
 	vtangle.OnTransactionConfirmed(func(tx *transaction.Transaction) {
+		log.Debugf("on transaction confirmed: %s", tx.ID().String())
 		connector.EventValueTransactionConfirmed.Trigger(tx)
+	})
+	vtangle.OnTransactionBooked(func(tx *transaction.Transaction, decisionPending bool) {
+		log.Debugf("on transaction booked: %s, decisionPending: %v", tx.ID().String(), decisionPending)
+	})
+	vtangle.OnTransactionFinalized(func(tx *transaction.Transaction) {
+		log.Debugf("on transaction finalized: %s", tx.ID().String())
+	})
+	vtangle.OnTransactionRejected(func(tx *transaction.Transaction) {
+		log.Debugf("on transaction rejected: %s", tx.ID().String())
 	})
 }
 
@@ -94,8 +104,6 @@ func runPlugin(_ *node.Plugin) {
 			_ = listener.Close()
 		}()
 
-		// TODO attach to goshimmer events
-
 		go func() {
 			// for each incoming connection spawns WaspConnector background worker
 			for {
@@ -111,6 +119,9 @@ func runPlugin(_ *node.Plugin) {
 		log.Debugf("running WaspConn plugin on port %d", port)
 
 		<-shutdownSignal
+
+		log.Infof("Detaching WaspConn from the Value Tangle..")
+		vtangle.Detach()
 
 		//log.Infof("Stopping WaspConn listener..")
 		//_ = listener.Close()

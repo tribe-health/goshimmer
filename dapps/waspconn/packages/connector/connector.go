@@ -89,6 +89,8 @@ func (wconn *WaspConnector) attach() {
 
 	wconn.bconn.Events.ReceiveMessage.Attach(wconn.receiveWaspMessageClosure)
 
+	wconn.log.Debugf("attached waspconn")
+
 	// read connection thread
 	go func() {
 		if err := wconn.bconn.Read(); err != nil {
@@ -108,7 +110,6 @@ func (wconn *WaspConnector) attach() {
 }
 
 func (wconn *WaspConnector) detach() {
-	wconn.vtangle.Detach()
 	EventValueTransactionConfirmed.Detach(wconn.receiveConfirmedValueTransactionClosure)
 	wconn.bconn.Events.ReceiveMessage.Detach(wconn.receiveWaspMessageClosure)
 
@@ -166,25 +167,25 @@ func (wconn *WaspConnector) processConfirmedTransactionFromNode(tx *transaction.
 		if err != nil {
 			wconn.log.Error(err)
 		} else {
-			wconn.log.Infof("new confirmed tx to Wasp: subscribed addr: %s, txid: %s",
+			wconn.log.Infof("confirmed tx -> Wasp: sc addr: %s, txid: %s",
 				subscribedOutAddresses[i].String(), tx.ID().String())
 		}
 	}
 }
 
-// find transaction async, parse it to SCTransaction and send to Wasp
 func (wconn *WaspConnector) getTransaction(txid *transaction.ID) {
 	wconn.log.Debugf("requested transaction id = %s", txid.String())
 
 	tx, confirmed := wconn.vtangle.GetTransaction(txid)
 	if tx == nil {
-		wconn.log.Debugf("!!!! GetTransaction %s : not found", txid.String())
+		wconn.log.Warnf("GetTransaction %s : not found", txid.String())
 		return
 	}
 	if err := wconn.sendTransactionToWasp(tx, confirmed); err != nil {
-		wconn.log.Debugf("!!!! sendTransactionToWasp: %v", err)
+		wconn.log.Errorf("sendTransactionToWasp: %v", err)
 		return
 	}
+	wconn.log.Infof("requested tx -> Wasp. txid = %s, confirmed = %v", txid.String(), confirmed)
 }
 
 func (wconn *WaspConnector) getAddressBalance(addr *address.Address) {
@@ -208,9 +209,9 @@ func (wconn *WaspConnector) getAddressBalance(addr *address.Address) {
 
 func (wconn *WaspConnector) postTransaction(tx *transaction.Transaction, fromSC *address.Address, fromLeader uint16) {
 	if err := wconn.vtangle.PostTransaction(tx); err != nil {
-		wconn.log.Warn(err)
+		wconn.log.Warnf("%v: %s", err, tx.ID().String())
 		return
 	}
-	wconn.log.Infof("Posted transaction from Wasp. txid: %s, from sc: %s, from leader: %d",
+	wconn.log.Infof("Wasp -> Tangle. txid: %s, from sc: %s, from leader: %d",
 		tx.ID().String(), fromSC.String(), fromLeader)
 }

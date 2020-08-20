@@ -1,14 +1,14 @@
 package connector
 
 import (
-	"io"
-
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/chopper"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/payload"
+	"io"
+	"strings"
 )
 
 func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error }) error {
@@ -87,22 +87,29 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 				continue
 			}
 			if col == balance.ColorNew {
-				panic("unexpected balance.ColorNew")
+				wconn.log.Errorf("unexpected balance.ColorNew")
+				continue
 			}
 			allColors[(transaction.ID)(b.Color)] = true
 		}
 	}
+
+	wconn.log.Infof("backlog -> Wasp for addr: %s, txs: [%s]", addr.String(), txidList(allColors))
 	for txid := range allColors {
 		tx, confirmed := wconn.vtangle.GetTransaction(&txid)
 		if tx == nil || !confirmed {
-			wconn.log.Errorf("inconsistency: can't find txid = %s", txid.String())
-			continue
+			wconn.log.Panicf("inconsistency: can't find txid = %s", txid.String())
 		}
 		if err := wconn.sendAddressUpdateToWasp(addr, outputs, tx); err != nil {
 			wconn.log.Error(err)
-		} else {
-			wconn.log.Infof("backlog tx to Wasp. subscribed addr: %s, txid: %s",
-				addr.String(), tx.ID().String())
 		}
 	}
+}
+
+func txidList(txidSet map[transaction.ID]bool) string {
+	ret := make([]string, 0, len(txidSet))
+	for txid := range txidSet {
+		ret = append(ret, txid.String())
+	}
+	return strings.Join(ret, ", ")
 }
