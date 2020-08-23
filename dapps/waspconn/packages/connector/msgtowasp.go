@@ -68,6 +68,14 @@ func (wconn *WaspConnector) sendAddressOutputsToWasp(address *address.Address, b
 	})
 }
 
+func (wconn *WaspConnector) sendTransactionEventToWasp(eventType byte, txid transaction.ID, addrs []address.Address) error {
+	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeTransactionEventMsg{
+		EventType:           eventType,
+		TxId:                txid,
+		SubscribedAddresses: addrs,
+	})
+}
+
 // query outputs database and collects transactions containing unprocessed requests
 func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 	outs, err := wconn.vtangle.GetConfirmedAddressOutputs(*addr)

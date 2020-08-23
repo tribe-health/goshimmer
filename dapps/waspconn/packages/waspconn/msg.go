@@ -2,6 +2,7 @@ package waspconn
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
@@ -24,6 +25,7 @@ const (
 	waspFromNodeTransaction
 	waspFromNodeAddressUpdate
 	waspFromNodeAddressOutputs
+	waspFromNodeTransactionEvent
 )
 
 const ChunkMessageHeaderSize = 3
@@ -76,6 +78,18 @@ type WaspFromNodeAddressOutputsMsg struct {
 	Balances map[transaction.ID][]*balance.Balance
 }
 
+const (
+	TransactionEventUndef = iota
+	TransactionEventBooked
+	TransactionEventRejected
+)
+
+type WaspFromNodeTransactionEventMsg struct {
+	EventType           byte
+	TxId                transaction.ID
+	SubscribedAddresses []address.Address
+}
+
 func typeToCode(msg interface{ Write(writer io.Writer) error }) byte {
 	switch msg.(type) {
 	case *WaspPingMsg:
@@ -107,7 +121,11 @@ func typeToCode(msg interface{ Write(writer io.Writer) error }) byte {
 
 	case *WaspFromNodeAddressOutputsMsg:
 		return waspFromNodeAddressOutputs
+
+	case *WaspFromNodeTransactionEventMsg:
+		return waspFromNodeTransactionEvent
 	}
+
 	panic("wrong type")
 }
 
@@ -185,6 +203,12 @@ func DecodeMsg(data []byte, waspSide bool) (interface{}, error) {
 			return nil, fmt.Errorf("wrong message")
 		}
 		ret = &WaspFromNodeAddressOutputsMsg{}
+
+	case waspFromNodeTransactionEvent:
+		if !waspSide {
+			return nil, fmt.Errorf("wrong message")
+		}
+		ret = &WaspFromNodeTransactionEventMsg{}
 
 	default:
 		return nil, fmt.Errorf("wrong message code")
@@ -387,6 +411,48 @@ func (msg *WaspFromNodeAddressOutputsMsg) Read(r io.Reader) error {
 	}
 	msg.Balances, err = ReadBalances(r)
 	return err
+}
+
+func (msg *WaspFromNodeTransactionEventMsg) Write(w io.Writer) error {
+	if err := WriteByte(w, msg.EventType); err != nil {
+		return err
+	}
+	if _, err := w.Write(msg.TxId[:]); err != nil {
+		return err
+	}
+	numAddrs := uint16(len(msg.SubscribedAddresses))
+	if err := WriteUint16(w, numAddrs); err != nil {
+		return err
+	}
+	for i := range msg.SubscribedAddresses {
+		if _, err := w.Write(msg.SubscribedAddresses[i][:]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (msg *WaspFromNodeTransactionEventMsg) Read(r io.Reader) error {
+	if err := ReadByte(r, &msg.EventType); err != nil {
+		return err
+	}
+	if msg.EventType != TransactionEventBooked && msg.EventType != TransactionEventRejected {
+		return errors.New("wrong transaction event type")
+	}
+	if err := ReadTransactionId(r, &msg.TxId); err != nil {
+		return err
+	}
+	var numAddrs uint16
+	if err := ReadUint16(r, &numAddrs); err != nil {
+		return err
+	}
+	msg.SubscribedAddresses = make([]address.Address, numAddrs)
+	for i := range msg.SubscribedAddresses {
+		if err := ReadAddress(r, &msg.SubscribedAddresses[i]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func WriteBalances(w io.Writer, balances map[transaction.ID][]*balance.Balance) error {

@@ -19,16 +19,22 @@ import (
 )
 
 type WaspConnector struct {
-	id                                      string
-	bconn                                   *buffconn.BufferedConnection
-	subscriptions                           map[address.Address]int
-	inTxChan                                chan *transaction.Transaction
-	exitConnChan                            chan struct{}
-	receiveConfirmedValueTransactionClosure *events.Closure
-	receiveWaspMessageClosure               *events.Closure
-	log                                     *logger.Logger
-	vtangle                                 valuetangle.ValueTangle
+	id                                 string
+	bconn                              *buffconn.BufferedConnection
+	subscriptions                      map[address.Address]int
+	inTxChan                           chan interface{}
+	exitConnChan                       chan struct{}
+	receiveConfirmedTransactionClosure *events.Closure
+	receiveBookedTransactionClosure    *events.Closure
+	receiveRejectedTransactionClosure  *events.Closure
+	receiveWaspMessageClosure          *events.Closure
+	log                                *logger.Logger
+	vtangle                            valuetangle.ValueTangle
 }
+
+type wrapConfirmedTx *transaction.Transaction
+type wrapBookedTx *transaction.Transaction
+type wrapRejectedTx *transaction.Transaction
 
 func Run(conn net.Conn, log *logger.Logger, vtangle valuetangle.ValueTangle) {
 	wconn := &WaspConnector{
@@ -74,10 +80,18 @@ func (wconn *WaspConnector) SetId(id string) {
 
 func (wconn *WaspConnector) attach() {
 	wconn.subscriptions = make(map[address.Address]int)
-	wconn.inTxChan = make(chan *transaction.Transaction)
+	wconn.inTxChan = make(chan interface{})
 
-	wconn.receiveConfirmedValueTransactionClosure = events.NewClosure(func(vtx *transaction.Transaction) {
-		wconn.inTxChan <- vtx
+	wconn.receiveConfirmedTransactionClosure = events.NewClosure(func(vtx *transaction.Transaction) {
+		wconn.inTxChan <- wrapConfirmedTx(vtx)
+	})
+
+	wconn.receiveBookedTransactionClosure = events.NewClosure(func(vtx *transaction.Transaction) {
+		wconn.inTxChan <- wrapBookedTx(vtx)
+	})
+
+	wconn.receiveRejectedTransactionClosure = events.NewClosure(func(vtx *transaction.Transaction) {
+		wconn.inTxChan <- wrapRejectedTx(vtx)
 	})
 
 	wconn.receiveWaspMessageClosure = events.NewClosure(func(data []byte) {
@@ -85,7 +99,9 @@ func (wconn *WaspConnector) attach() {
 	})
 
 	// attach connector to the flow of incoming value transactions
-	EventValueTransactionConfirmed.Attach(wconn.receiveConfirmedValueTransactionClosure)
+	EventValueTransactionConfirmed.Attach(wconn.receiveConfirmedTransactionClosure)
+	EventValueTransactionBooked.Attach(wconn.receiveBookedTransactionClosure)
+	EventValueTransactionRejected.Attach(wconn.receiveRejectedTransactionClosure)
 
 	wconn.bconn.Events.ReceiveMessage.Attach(wconn.receiveWaspMessageClosure)
 
@@ -104,13 +120,27 @@ func (wconn *WaspConnector) attach() {
 	// read incoming pre-filtered transactions from node
 	go func() {
 		for vtx := range wconn.inTxChan {
-			wconn.processConfirmedTransactionFromNode(vtx)
+			switch tvtx := vtx.(type) {
+			case wrapConfirmedTx:
+				wconn.processConfirmedTransactionFromNode(tvtx)
+
+			case wrapBookedTx:
+				wconn.processBookedTransactionFromNode(tvtx)
+
+			case wrapRejectedTx:
+				wconn.processRejectedTransactionFromNode(tvtx)
+
+			default:
+				wconn.log.Panicf("wrong type")
+			}
 		}
 	}()
 }
 
 func (wconn *WaspConnector) detach() {
-	EventValueTransactionConfirmed.Detach(wconn.receiveConfirmedValueTransactionClosure)
+	EventValueTransactionConfirmed.Detach(wconn.receiveConfirmedTransactionClosure)
+	EventValueTransactionBooked.Detach(wconn.receiveBookedTransactionClosure)
+	EventValueTransactionRejected.Detach(wconn.receiveRejectedTransactionClosure)
 	wconn.bconn.Events.ReceiveMessage.Detach(wconn.receiveWaspMessageClosure)
 
 	close(wconn.inTxChan)
@@ -132,19 +162,24 @@ func (wconn *WaspConnector) isSubscribed(addr *address.Address) bool {
 	return ok
 }
 
+func (wconn *WaspConnector) txSubscribedAddresses(tx *transaction.Transaction) []address.Address {
+	ret := make([]address.Address, 0)
+	tx.Outputs().ForEach(func(addr address.Address, _ []*balance.Balance) bool {
+		if wconn.isSubscribed(&addr) {
+			ret = append(ret, addr)
+		}
+		return true
+	})
+	return ret
+}
+
 // processConfirmedTransactionFromNode receives only confirmed transactions
 // it parses SC transaction incoming from the node. Forwards it to Wasp if subscribed
 func (wconn *WaspConnector) processConfirmedTransactionFromNode(tx *transaction.Transaction) {
 	// determine if transaction contains any of subscribed addresses in its outputs
 	wconn.log.Debugw("processConfirmedTransactionFromNode", "txid", tx.ID().String())
 
-	subscribedOutAddresses := make([]address.Address, 0)
-	tx.Outputs().ForEach(func(addr address.Address, _ []*balance.Balance) bool {
-		if wconn.isSubscribed(&addr) {
-			subscribedOutAddresses = append(subscribedOutAddresses, addr)
-		}
-		return true
-	})
+	subscribedOutAddresses := wconn.txSubscribedAddresses(tx)
 	if len(subscribedOutAddresses) == 0 {
 		wconn.log.Debugw("not subscribed", "txid", tx.ID().String())
 		// dismiss unsubscribed transaction
@@ -170,6 +205,30 @@ func (wconn *WaspConnector) processConfirmedTransactionFromNode(tx *transaction.
 			wconn.log.Infof("confirmed tx -> Wasp: sc addr: %s, txid: %s",
 				subscribedOutAddresses[i].String(), tx.ID().String())
 		}
+	}
+}
+
+func (wconn *WaspConnector) processBookedTransactionFromNode(tx *transaction.Transaction) {
+	addrs := wconn.txSubscribedAddresses(tx)
+	if len(addrs) == 0 {
+		return
+	}
+	if err := wconn.sendTransactionEventToWasp(waspconn.TransactionEventBooked, tx.ID(), addrs); err != nil {
+		wconn.log.Errorf("processBookedTransactionFromNode: %v", err)
+	} else {
+		wconn.log.Infof("booked tx -> Wasp. txid: %s", tx.ID().String())
+	}
+}
+
+func (wconn *WaspConnector) processRejectedTransactionFromNode(tx *transaction.Transaction) {
+	addrs := wconn.txSubscribedAddresses(tx)
+	if len(addrs) == 0 {
+		return
+	}
+	if err := wconn.sendTransactionEventToWasp(waspconn.TransactionEventRejected, tx.ID(), addrs); err != nil {
+		wconn.log.Errorf("processRejectedTransactionFromNode: %v", err)
+	} else {
+		wconn.log.Infof("rejected tx -> Wasp. txid: %s", tx.ID().String())
 	}
 }
 
