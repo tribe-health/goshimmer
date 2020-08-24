@@ -570,7 +570,7 @@ var inclusionLevels = map[byte]string{
 	TransactionInclusionLevelRejected:  "rejected",
 }
 
-// InclusionLevelText
+// InclusionLevelText return text representation of the code
 func InclusionLevelText(level byte) string {
 	if ret, ok := inclusionLevels[level]; ok {
 		return ret
