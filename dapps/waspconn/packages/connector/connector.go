@@ -213,7 +213,8 @@ func (wconn *WaspConnector) processBookedTransactionFromNode(tx *transaction.Tra
 	if len(addrs) == 0 {
 		return
 	}
-	if err := wconn.sendTransactionEventToWasp(waspconn.TransactionEventBooked, tx.ID(), addrs); err != nil {
+	txid := tx.ID()
+	if err := wconn.sendTxInclusionLevelToWasp(waspconn.TransactionInclusionLevelBooked, &txid, addrs); err != nil {
 		wconn.log.Errorf("processBookedTransactionFromNode: %v", err)
 	} else {
 		wconn.log.Infof("booked tx -> Wasp. txid: %s", tx.ID().String())
@@ -225,7 +226,8 @@ func (wconn *WaspConnector) processRejectedTransactionFromNode(tx *transaction.T
 	if len(addrs) == 0 {
 		return
 	}
-	if err := wconn.sendTransactionEventToWasp(waspconn.TransactionEventRejected, tx.ID(), addrs); err != nil {
+	txid := tx.ID()
+	if err := wconn.sendTxInclusionLevelToWasp(waspconn.TransactionInclusionLevelRejected, &txid, addrs); err != nil {
 		wconn.log.Errorf("processRejectedTransactionFromNode: %v", err)
 	} else {
 		wconn.log.Infof("rejected tx -> Wasp. txid: %s", tx.ID().String())
@@ -245,6 +247,17 @@ func (wconn *WaspConnector) getConfirmedTransaction(txid *transaction.ID) {
 		return
 	}
 	wconn.log.Infof("confirmed tx -> Wasp. txid = %s", txid.String())
+}
+
+func (wconn *WaspConnector) getTxInclusionLevel(txid *transaction.ID, addr *address.Address) {
+	level := wconn.vtangle.GetTxInclusionLevel(txid)
+	if level == waspconn.TransactionInclusionLevelUndef {
+		return
+	}
+	if err := wconn.sendTxInclusionLevelToWasp(level, txid, []address.Address{*addr}); err != nil {
+		wconn.log.Errorf("sendTxInclusionLevelToWasp: %v", err)
+		return
+	}
 }
 
 func (wconn *WaspConnector) getAddressBalance(addr *address.Address) {

@@ -2,6 +2,7 @@ package valuetangle
 
 import (
 	"fmt"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 
 	"github.com/iotaledger/goshimmer/dapps/faucet"
 	faucetpayload "github.com/iotaledger/goshimmer/dapps/faucet/packages/payload"
@@ -20,6 +21,7 @@ import (
 type ValueTangle interface {
 	GetConfirmedAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error)
 	GetConfirmedTransaction(txid *transaction.ID) *transaction.Transaction
+	GetTxInclusionLevel(txid *transaction.ID) byte
 	OnTransactionConfirmed(func(tx *transaction.Transaction))
 	OnTransactionBooked(func(tx *transaction.Transaction, decisionPending bool))
 	OnTransactionFinalized(func(tx *transaction.Transaction))
@@ -146,6 +148,34 @@ func (v *valuetangle) GetConfirmedTransaction(txid *transaction.ID) *transaction
 		return nil
 	}
 	return cachedTxnObj.Unwrap()
+}
+
+func (ce *valuetangle) GetTxInclusionLevel(txid *transaction.ID) byte {
+	cachedTxnObj := valuetransfers.Tangle().Transaction(*txid)
+	defer cachedTxnObj.Release()
+
+	if !cachedTxnObj.Exists() {
+		return waspconn.TransactionInclusionLevelUndef
+	}
+
+	// retrieve metadata
+	cachedTxnMetaObj := valuetransfers.Tangle().TransactionMetadata(*txid)
+	defer cachedTxnMetaObj.Release()
+
+	unwrapped := cachedTxnMetaObj.Unwrap()
+	switch {
+	case !cachedTxnMetaObj.Exists():
+		return waspconn.TransactionInclusionLevelUndef
+
+	case unwrapped.Rejected():
+		return waspconn.TransactionInclusionLevelRejected
+
+	case unwrapped.Confirmed():
+		return waspconn.TransactionInclusionLevelConfirmed
+
+	default:
+		return waspconn.TransactionInclusionLevelBooked
+	}
 }
 
 func (v *valuetangle) PostTransaction(tx *transaction.Transaction) error {

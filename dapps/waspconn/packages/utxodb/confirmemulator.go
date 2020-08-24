@@ -2,6 +2,7 @@ package utxodb
 
 import (
 	"fmt"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 	"math/rand"
 	"sync"
 	"time"
@@ -139,6 +140,14 @@ func (ce *ConfirmEmulator) IsConfirmed(txid *transaction.ID) (bool, error) {
 func (ce *ConfirmEmulator) GetConfirmedTransaction(txid *transaction.ID) *transaction.Transaction {
 	tx, _ := ce.UtxoDB.GetTransaction(*txid)
 	return tx
+}
+
+func (ce *ConfirmEmulator) GetTxInclusionLevel(txid *transaction.ID) byte {
+	_, ok := ce.UtxoDB.GetTransaction(*txid)
+	if ok {
+		return waspconn.TransactionInclusionLevelConfirmed
+	}
+	return waspconn.TransactionInclusionLevelUndef
 }
 
 func (ce *ConfirmEmulator) RequestFunds(target address.Address) error {

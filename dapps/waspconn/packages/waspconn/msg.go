@@ -17,7 +17,8 @@ const (
 	// wasp -> node
 	waspToNodeTransaction
 	waspToNodeSubscribe
-	waspToNodeGetTransaction
+	waspToNodeGetConfirmedTransaction
+	waspToNodeGetTxInclusionLevel
 	waspToNodeGetOutputs
 	waspToNodeSetId
 
@@ -25,7 +26,7 @@ const (
 	waspFromNodeConfirmedTransaction
 	waspFromNodeAddressUpdate
 	waspFromNodeAddressOutputs
-	waspFromNodeTransactionEvent
+	waspFromNodeTransactionInclusionState
 )
 
 const ChunkMessageHeaderSize = 3
@@ -51,7 +52,12 @@ type WaspToNodeSubscribeMsg struct {
 }
 
 type WaspToNodeGetConfirmedTransactionMsg struct {
-	TxId *transaction.ID
+	TxId transaction.ID
+}
+
+type WaspToNodeGetTxInclusionLevelMsg struct {
+	TxId      transaction.ID
+	SCAddress address.Address
 }
 
 type WaspToNodeGetOutputsMsg struct {
@@ -78,15 +84,16 @@ type WaspFromNodeAddressOutputsMsg struct {
 }
 
 const (
-	TransactionEventUndef = iota
-	TransactionEventBooked
-	TransactionEventRejected
+	TransactionInclusionLevelUndef = iota
+	TransactionInclusionLevelBooked
+	TransactionInclusionLevelConfirmed
+	TransactionInclusionLevelRejected
 )
 
-type WaspFromNodeTransactionEventMsg struct {
-	EventType           byte
+type WaspFromNodeTransactionInclusionLevelMsg struct {
+	Level               byte
 	TxId                transaction.ID
-	SubscribedAddresses []address.Address
+	SubscribedAddresses []address.Address // addresses which transaction might be interesting to
 }
 
 func typeToCode(msg interface{ Write(writer io.Writer) error }) byte {
@@ -104,7 +111,10 @@ func typeToCode(msg interface{ Write(writer io.Writer) error }) byte {
 		return waspToNodeSubscribe
 
 	case *WaspToNodeGetConfirmedTransactionMsg:
-		return waspToNodeGetTransaction
+		return waspToNodeGetConfirmedTransaction
+
+	case *WaspToNodeGetTxInclusionLevelMsg:
+		return waspToNodeGetTxInclusionLevel
 
 	case *WaspToNodeGetOutputsMsg:
 		return waspToNodeGetOutputs
@@ -121,8 +131,8 @@ func typeToCode(msg interface{ Write(writer io.Writer) error }) byte {
 	case *WaspFromNodeAddressOutputsMsg:
 		return waspFromNodeAddressOutputs
 
-	case *WaspFromNodeTransactionEventMsg:
-		return waspFromNodeTransactionEvent
+	case *WaspFromNodeTransactionInclusionLevelMsg:
+		return waspFromNodeTransactionInclusionState
 	}
 
 	panic("wrong type")
@@ -167,11 +177,17 @@ func DecodeMsg(data []byte, waspSide bool) (interface{}, error) {
 		}
 		ret = &WaspToNodeSubscribeMsg{}
 
-	case waspToNodeGetTransaction:
+	case waspToNodeGetConfirmedTransaction:
 		if waspSide {
 			return nil, fmt.Errorf("wrong message")
 		}
 		ret = &WaspToNodeGetConfirmedTransactionMsg{}
+
+	case waspToNodeGetTxInclusionLevel:
+		if waspSide {
+			return nil, fmt.Errorf("wrong message")
+		}
+		ret = &WaspToNodeGetTxInclusionLevelMsg{}
 
 	case waspToNodeGetOutputs:
 		if waspSide {
@@ -203,11 +219,11 @@ func DecodeMsg(data []byte, waspSide bool) (interface{}, error) {
 		}
 		ret = &WaspFromNodeAddressOutputsMsg{}
 
-	case waspFromNodeTransactionEvent:
+	case waspFromNodeTransactionInclusionState:
 		if !waspSide {
 			return nil, fmt.Errorf("wrong message")
 		}
-		ret = &WaspFromNodeTransactionEventMsg{}
+		ret = &WaspFromNodeTransactionInclusionLevelMsg{}
 
 	default:
 		return nil, fmt.Errorf("wrong message code")
@@ -299,18 +315,30 @@ func (msg *WaspToNodeSubscribeMsg) Read(r io.Reader) error {
 }
 
 func (msg *WaspToNodeGetConfirmedTransactionMsg) Write(w io.Writer) error {
-	_, err := w.Write(msg.TxId.Bytes())
+	_, err := w.Write(msg.TxId[:])
 	return err
 }
 
 func (msg *WaspToNodeGetConfirmedTransactionMsg) Read(r io.Reader) error {
-	msg.TxId = new(transaction.ID)
-	n, err := r.Read(msg.TxId[:])
-	if err != nil {
+	return ReadTransactionId(r, &msg.TxId)
+}
+
+func (msg *WaspToNodeGetTxInclusionLevelMsg) Write(w io.Writer) error {
+	if _, err := w.Write(msg.TxId[:]); err != nil {
 		return err
 	}
-	if n != transaction.IDLength {
-		return fmt.Errorf("error while reading 'get transaction' message")
+	if _, err := w.Write(msg.SCAddress[:]); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (msg *WaspToNodeGetTxInclusionLevelMsg) Read(r io.Reader) error {
+	if err := ReadTransactionId(r, &msg.TxId); err != nil {
+		return err
+	}
+	if err := ReadAddress(r, &msg.SCAddress); err != nil {
+		return err
 	}
 	return nil
 }
@@ -406,8 +434,8 @@ func (msg *WaspFromNodeAddressOutputsMsg) Read(r io.Reader) error {
 	return err
 }
 
-func (msg *WaspFromNodeTransactionEventMsg) Write(w io.Writer) error {
-	if err := WriteByte(w, msg.EventType); err != nil {
+func (msg *WaspFromNodeTransactionInclusionLevelMsg) Write(w io.Writer) error {
+	if err := WriteByte(w, msg.Level); err != nil {
 		return err
 	}
 	if _, err := w.Write(msg.TxId[:]); err != nil {
@@ -425,11 +453,11 @@ func (msg *WaspFromNodeTransactionEventMsg) Write(w io.Writer) error {
 	return nil
 }
 
-func (msg *WaspFromNodeTransactionEventMsg) Read(r io.Reader) error {
-	if err := ReadByte(r, &msg.EventType); err != nil {
+func (msg *WaspFromNodeTransactionInclusionLevelMsg) Read(r io.Reader) error {
+	if err := ReadByte(r, &msg.Level); err != nil {
 		return err
 	}
-	if msg.EventType != TransactionEventBooked && msg.EventType != TransactionEventRejected {
+	if msg.Level != TransactionInclusionLevelBooked && msg.Level != TransactionInclusionLevelRejected {
 		return errors.New("wrong transaction event type")
 	}
 	if err := ReadTransactionId(r, &msg.TxId); err != nil {

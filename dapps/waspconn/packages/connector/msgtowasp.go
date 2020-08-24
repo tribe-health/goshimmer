@@ -67,10 +67,10 @@ func (wconn *WaspConnector) sendAddressOutputsToWasp(address *address.Address, b
 	})
 }
 
-func (wconn *WaspConnector) sendTransactionEventToWasp(eventType byte, txid transaction.ID, addrs []address.Address) error {
-	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeTransactionEventMsg{
-		EventType:           eventType,
-		TxId:                txid,
+func (wconn *WaspConnector) sendTxInclusionLevelToWasp(inclLevel byte, txid *transaction.ID, addrs []address.Address) error {
+	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeTransactionInclusionLevelMsg{
+		Level:               inclLevel,
+		TxId:                *txid,
 		SubscribedAddresses: addrs,
 	})
 }

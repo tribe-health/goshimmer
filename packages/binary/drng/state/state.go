@@ -35,7 +35,7 @@ type Committee struct {
 	DistributedPK []byte
 }
 
-// State represents the state of the DRNG.
+// Level represents the state of the DRNG.
 type State struct {
 	randomness *Randomness
 	committee  *Committee
@@ -43,7 +43,7 @@ type State struct {
 	mutex sync.RWMutex
 }
 
-// New creates a new State with the given optional options
+// New creates a new Level with the given optional options
 func New(setters ...Option) *State {
 	args := &Options{}
 
