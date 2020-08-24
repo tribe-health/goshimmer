@@ -107,7 +107,6 @@ func runPlugin(_ *node.Plugin) {
 		}()
 
 		go func() {
-			// for each incoming connection spawns WaspConnector background worker
 			for {
 				conn, err := listener.Accept()
 				if err != nil {
