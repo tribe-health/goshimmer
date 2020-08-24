@@ -232,19 +232,19 @@ func (wconn *WaspConnector) processRejectedTransactionFromNode(tx *transaction.T
 	}
 }
 
-func (wconn *WaspConnector) getTransaction(txid *transaction.ID) {
+func (wconn *WaspConnector) getConfirmedTransaction(txid *transaction.ID) {
 	wconn.log.Debugf("requested transaction id = %s", txid.String())
 
-	tx, confirmed := wconn.vtangle.GetTransaction(txid)
+	tx := wconn.vtangle.GetConfirmedTransaction(txid)
 	if tx == nil {
-		wconn.log.Warnf("GetTransaction %s : not found", txid.String())
+		wconn.log.Warnf("GetConfirmedTransaction: not found %s", txid.String())
 		return
 	}
-	if err := wconn.sendTransactionToWasp(tx, confirmed); err != nil {
-		wconn.log.Errorf("sendTransactionToWasp: %v", err)
+	if err := wconn.sendConfirmedTransactionToWasp(tx); err != nil {
+		wconn.log.Errorf("sendConfirmedTransactionToWasp: %v", err)
 		return
 	}
-	wconn.log.Infof("requested tx -> Wasp. txid = %s, confirmed = %v", txid.String(), confirmed)
+	wconn.log.Infof("confirmed tx -> Wasp. txid = %s", txid.String())
 }
 
 func (wconn *WaspConnector) getAddressBalance(addr *address.Address) {

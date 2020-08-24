@@ -46,10 +46,9 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 	return nil
 }
 
-func (wconn *WaspConnector) sendTransactionToWasp(vtx *transaction.Transaction, confirmed bool) error {
-	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeTransactionMsg{
-		Tx:        vtx,
-		Confirmed: confirmed,
+func (wconn *WaspConnector) sendConfirmedTransactionToWasp(vtx *transaction.Transaction) error {
+	return wconn.sendMsgToWasp(&waspconn.WaspFromNodeConfirmedTransactionMsg{
+		Tx: vtx,
 	})
 }
 
@@ -104,12 +103,13 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 
 	wconn.log.Infof("backlog -> Wasp for addr: %s, txs: [%s]", addr.String(), txidList(allColors))
 	for txid := range allColors {
-		tx, confirmed := wconn.vtangle.GetTransaction(&txid)
-		if tx == nil || !confirmed {
-			wconn.log.Panicf("inconsistency: can't find txid = %s", txid.String())
+		tx := wconn.vtangle.GetConfirmedTransaction(&txid)
+		if tx == nil {
+			wconn.log.Errorf("inconsistency: can't find txid = %s", txid.String())
+			continue
 		}
 		if err := wconn.sendAddressUpdateToWasp(addr, outputs, tx); err != nil {
-			wconn.log.Error(err)
+			wconn.log.Errorf("sendAddressUpdateToWasp: %v", err)
 		}
 	}
 }

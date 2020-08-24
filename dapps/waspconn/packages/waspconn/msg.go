@@ -22,7 +22,7 @@ const (
 	waspToNodeSetId
 
 	// node -> wasp
-	waspFromNodeTransaction
+	waspFromNodeConfirmedTransaction
 	waspFromNodeAddressUpdate
 	waspFromNodeAddressOutputs
 	waspFromNodeTransactionEvent
@@ -50,7 +50,7 @@ type WaspToNodeSubscribeMsg struct {
 	Addresses []address.Address
 }
 
-type WaspToNodeGetTransactionMsg struct {
+type WaspToNodeGetConfirmedTransactionMsg struct {
 	TxId *transaction.ID
 }
 
@@ -62,9 +62,8 @@ type WaspToNodeSetIdMsg struct {
 	Waspid string
 }
 
-type WaspFromNodeTransactionMsg struct {
-	Tx        *transaction.Transaction
-	Confirmed bool
+type WaspFromNodeConfirmedTransactionMsg struct {
+	Tx *transaction.Transaction
 }
 
 type WaspFromNodeAddressUpdateMsg struct {
@@ -104,7 +103,7 @@ func typeToCode(msg interface{ Write(writer io.Writer) error }) byte {
 	case *WaspToNodeSubscribeMsg:
 		return waspToNodeSubscribe
 
-	case *WaspToNodeGetTransactionMsg:
+	case *WaspToNodeGetConfirmedTransactionMsg:
 		return waspToNodeGetTransaction
 
 	case *WaspToNodeGetOutputsMsg:
@@ -113,8 +112,8 @@ func typeToCode(msg interface{ Write(writer io.Writer) error }) byte {
 	case *WaspToNodeSetIdMsg:
 		return waspToNodeSetId
 
-	case *WaspFromNodeTransactionMsg:
-		return waspFromNodeTransaction
+	case *WaspFromNodeConfirmedTransactionMsg:
+		return waspFromNodeConfirmedTransaction
 
 	case *WaspFromNodeAddressUpdateMsg:
 		return waspFromNodeAddressUpdate
@@ -172,7 +171,7 @@ func DecodeMsg(data []byte, waspSide bool) (interface{}, error) {
 		if waspSide {
 			return nil, fmt.Errorf("wrong message")
 		}
-		ret = &WaspToNodeGetTransactionMsg{}
+		ret = &WaspToNodeGetConfirmedTransactionMsg{}
 
 	case waspToNodeGetOutputs:
 		if waspSide {
@@ -186,11 +185,11 @@ func DecodeMsg(data []byte, waspSide bool) (interface{}, error) {
 		}
 		ret = &WaspToNodeSetIdMsg{}
 
-	case waspFromNodeTransaction:
+	case waspFromNodeConfirmedTransaction:
 		if !waspSide {
 			return nil, fmt.Errorf("wrong message")
 		}
-		ret = &WaspFromNodeTransactionMsg{}
+		ret = &WaspFromNodeConfirmedTransactionMsg{}
 
 	case waspFromNodeAddressUpdate:
 		if !waspSide {
@@ -299,12 +298,12 @@ func (msg *WaspToNodeSubscribeMsg) Read(r io.Reader) error {
 	return nil
 }
 
-func (msg *WaspToNodeGetTransactionMsg) Write(w io.Writer) error {
+func (msg *WaspToNodeGetConfirmedTransactionMsg) Write(w io.Writer) error {
 	_, err := w.Write(msg.TxId.Bytes())
 	return err
 }
 
-func (msg *WaspToNodeGetTransactionMsg) Read(r io.Reader) error {
+func (msg *WaspToNodeGetConfirmedTransactionMsg) Read(r io.Reader) error {
 	msg.TxId = new(transaction.ID)
 	n, err := r.Read(msg.TxId[:])
 	if err != nil {
@@ -335,25 +334,19 @@ func (msg *WaspToNodeSetIdMsg) Read(r io.Reader) error {
 	return err
 }
 
-func (msg *WaspFromNodeTransactionMsg) Write(w io.Writer) error {
+func (msg *WaspFromNodeConfirmedTransactionMsg) Write(w io.Writer) error {
 	if err := WriteBytes32(w, msg.Tx.Bytes()); err != nil {
-		return err
-	}
-	if err := WriteBoolByte(w, msg.Confirmed); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (msg *WaspFromNodeTransactionMsg) Read(r io.Reader) error {
+func (msg *WaspFromNodeConfirmedTransactionMsg) Read(r io.Reader) error {
 	data, err := ReadBytes32(r)
 	if err != nil {
 		return err
 	}
 	if msg.Tx, _, err = transaction.FromBytes(data); err != nil {
-		return err
-	}
-	if err = ReadBoolByte(r, &msg.Confirmed); err != nil {
 		return err
 	}
 	return nil

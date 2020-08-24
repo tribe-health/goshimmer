@@ -44,8 +44,8 @@ func (wconn *WaspConnector) processMsgDataFromWasp(data []byte) {
 			}
 		}()
 
-	case *waspconn.WaspToNodeGetTransactionMsg:
-		wconn.getTransaction(msgt.TxId)
+	case *waspconn.WaspToNodeGetConfirmedTransactionMsg:
+		wconn.getConfirmedTransaction(msgt.TxId)
 
 	case *waspconn.WaspToNodeGetOutputsMsg:
 		wconn.getAddressBalance(&msgt.Address)
