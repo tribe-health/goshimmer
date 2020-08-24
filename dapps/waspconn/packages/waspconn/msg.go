@@ -2,7 +2,6 @@ package waspconn
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
@@ -456,9 +455,6 @@ func (msg *WaspFromNodeTransactionInclusionLevelMsg) Write(w io.Writer) error {
 func (msg *WaspFromNodeTransactionInclusionLevelMsg) Read(r io.Reader) error {
 	if err := ReadByte(r, &msg.Level); err != nil {
 		return err
-	}
-	if msg.Level != TransactionInclusionLevelBooked && msg.Level != TransactionInclusionLevelRejected {
-		return errors.New("wrong transaction event type")
 	}
 	if err := ReadTransactionId(r, &msg.TxId); err != nil {
 		return err
