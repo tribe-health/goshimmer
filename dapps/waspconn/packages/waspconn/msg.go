@@ -562,3 +562,17 @@ func BalancesToOutputs(addr address.Address, bals map[transaction.ID][]*balance.
 	}
 	return ret
 }
+
+var inclusionLevels = map[byte]string{
+	TransactionInclusionLevelUndef:     "undef",
+	TransactionInclusionLevelBooked:    "booked",
+	TransactionInclusionLevelConfirmed: "confirmed",
+	TransactionInclusionLevelRejected:  "rejected",
+}
+
+func InclusionLevelText(level byte) string {
+	if ret, ok := inclusionLevels[level]; ok {
+		return ret
+	}
+	return "wrong code"
+}
