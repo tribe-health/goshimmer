@@ -119,7 +119,7 @@ func (v *valuetangle) OnTransactionRejected(cb func(tx *transaction.Transaction)
 func (v *valuetangle) GetConfirmedAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error) {
 	ret := make(map[transaction.OutputID][]*balance.Balance)
 	valuetransfers.Tangle().OutputsOnAddress(addr).Consume(func(output *tangle.Output) {
-		if output.Confirmed() { // && output.ConsumerCount() == 0 {
+		if output.Confirmed() && output.ConsumerCount() == 0 {
 			ret[output.ID()] = output.Balances()
 		}
 	})

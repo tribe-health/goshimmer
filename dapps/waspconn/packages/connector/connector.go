@@ -1,10 +1,6 @@
 package connector
 
 import (
-	"io"
-	"net"
-	"strings"
-
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
@@ -16,6 +12,9 @@ import (
 	"github.com/iotaledger/hive.go/events"
 	"github.com/iotaledger/hive.go/logger"
 	"github.com/iotaledger/hive.go/netutil/buffconn"
+	"io"
+	"net"
+	"strings"
 )
 
 type WaspConnector struct {
@@ -194,13 +193,14 @@ func (wconn *WaspConnector) processConfirmedTransactionFromNode(tx *transaction.
 			wconn.log.Error(err)
 			continue
 		}
+		bals := waspconn.OutputsToBalances(outs)
 		err = wconn.sendAddressUpdateToWasp(
 			&subscribedOutAddresses[i],
-			waspconn.OutputsToBalances(outs),
+			bals,
 			tx,
 		)
 		if err != nil {
-			wconn.log.Error(err)
+			wconn.log.Errorf("sendAddressUpdateToWasp: %v", err)
 		} else {
 			wconn.log.Infof("confirmed tx -> Wasp: sc addr: %s, txid: %s",
 				subscribedOutAddresses[i].String(), tx.ID().String())
