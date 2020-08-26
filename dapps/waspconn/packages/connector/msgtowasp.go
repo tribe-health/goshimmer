@@ -8,7 +8,6 @@ import (
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/payload"
 	"io"
-	"strings"
 )
 
 func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error }) error {
@@ -106,7 +105,7 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 	// for each color we try to load corresponding origin transaction.
 	// if the transaction exist and it is among the outputs of the address,
 	// the send balances with the transaction as address update
-	wconn.log.Infof("backlog -> Wasp for addr: %s, txs: [%s]", addr.String(), txidList(allColors))
+	sentTxs := make([]transaction.ID, 0)
 	for txid := range allColors {
 		tx := wconn.vtangle.GetConfirmedTransaction(&txid)
 		if tx == nil {
@@ -120,14 +119,9 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 		}
 		if err := wconn.sendAddressUpdateToWasp(addr, outputs, tx); err != nil {
 			wconn.log.Errorf("sendAddressUpdateToWasp: %v", err)
+		} else {
+			sentTxs = append(sentTxs, txid)
 		}
 	}
-}
-
-func txidList(txidSet map[transaction.ID]bool) string {
-	ret := make([]string, 0, len(txidSet))
-	for txid := range txidSet {
-		ret = append(ret, txid.String())
-	}
-	return strings.Join(ret, ", ")
+	wconn.log.Infof("backlog -> Wasp for addr: %s, txs: %+v", addr.String(), sentTxs)
 }
