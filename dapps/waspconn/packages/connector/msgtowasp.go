@@ -86,6 +86,8 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 		return
 	}
 	outputs := waspconn.OutputsToBalances(outs)
+
+	// collect all colors of outputs
 	allColors := make(map[transaction.ID]bool)
 	for _, bals := range outputs {
 		for _, b := range bals {
@@ -101,11 +103,19 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 		}
 	}
 
+	// for each color we try to load corresponding origin transaction.
+	// if the transaction exist and it is among the outputs of the address,
+	// the send balances with the transaction as address update
 	wconn.log.Infof("backlog -> Wasp for addr: %s, txs: [%s]", addr.String(), txidList(allColors))
 	for txid := range allColors {
 		tx := wconn.vtangle.GetConfirmedTransaction(&txid)
 		if tx == nil {
-			wconn.log.Errorf("inconsistency: can't find txid = %s", txid.String())
+			wconn.log.Warnf("can't find the origin tx for the color %s. It may be snapshotted", txid.String())
+			continue
+		}
+		if _, ok := outputs[txid]; !ok {
+			// the transaction taken by color is not among transaction in outputs of the address.
+			// Irrelevant to the backlog, skip it.
 			continue
 		}
 		if err := wconn.sendAddressUpdateToWasp(addr, outputs, tx); err != nil {
