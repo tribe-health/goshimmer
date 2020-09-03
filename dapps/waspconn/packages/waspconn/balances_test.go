@@ -2,23 +2,23 @@ package waspconn
 
 import (
 	"bytes"
-	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/utxodb"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
+	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
+	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBalances(t *testing.T) {
-	u := utxodb.New()
+	bals := map[transaction.ID][]*balance.Balance{
+		transaction.RandomID(): {
+			balance.New(balance.ColorIOTA, 42),
+		},
+	}
 
-	addr := utxodb.NewSigScheme("C6hPhCS2E2dKUGS3qj4264itKXohwgL3Lm2fNxayAKr", 0).Address()
-	_, err := u.RequestFunds(addr)
-	assert.NoError(t, err)
-
-	outs := u.GetAddressOutputs(addr)
 	var buf bytes.Buffer
-	bals := OutputsToBalances(outs)
-
-	err = WriteBalances(&buf, bals)
+	err := WriteBalances(&buf, bals)
 	assert.Equal(t, err, nil)
 
 	balsBack, err := ReadBalances(bytes.NewReader(buf.Bytes()))
@@ -31,5 +31,5 @@ func TestBalances(t *testing.T) {
 
 	assert.Equal(t, err, nil)
 
-	_ = BalancesToOutputs(addr, balsBack)
+	_ = BalancesToOutputs(address.Address{}, balsBack)
 }
