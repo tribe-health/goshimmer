@@ -30,7 +30,6 @@ services:
       --prometheus.bindAddress=0.0.0.0:9312
       --node.enablePlugins=analysis-server,analysis-dashboard,waspconn
       --node.disablePlugins=portcheck,dashboard,analysis-client,gossip,drng,issuer,syncbeaconfollower,messagelayer,pow,valuetransfers,webapi,webapibroadcastdataendpoint,webapifindtransactionhashesendpoint,webapigetneighborsendpoint,webapigettransactionobjectsbyhashendpoint,webapigettransactiontrytesbyhashendpoint,prometheus
-      --waspconn.utxodbenabled=false
       --database.inMemory=true
     volumes:
       - ./config.docker.json:/tmp/config.json:ro
@@ -56,7 +55,6 @@ services:
       --syncbeacon.broadcastInterval=5
       --syncbeacon.startSynced=true
       --database.inMemory=true
-      --waspconn.utxodbenabled=false
     volumes:
       - ./config.docker.json:/tmp/config.json:ro
       - goshimmer-cache:/go
@@ -80,7 +78,6 @@ services:
       --faucet.seed=7R1itJx5hVuo9w9hjg5cwKFmek4HMSoBDgJZN8hKGxih
       --faucet.powDifficulty=2
       --syncbeaconfollower.followNodes=EYsaGXnUVA9aTYL9FwYEvoQ8d1HCJveQVL7vogu6pqCP
-      --waspconn.utxodbenabled=false
       --database.inMemory=true
     volumes:
       - ./config.docker.json:/tmp/config.json:ro

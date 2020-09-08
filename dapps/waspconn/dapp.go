@@ -32,7 +32,7 @@ const (
 
 func init() {
 	flag.Int(WaspConnPort, 5000, "port for Wasp connections")
-	flag.Bool(WaspConnUtxodbEnabled, true, "is utxodb mocking the value tangle enabled") // later change the default
+	flag.Bool(WaspConnUtxodbEnabled, false, "is utxodb mocking the value tangle enabled")
 
 	flag.Int(WaspConnUtxodbConfirmDelay, 0, "emulated confirmation delay for utxodb in seconds")
 	flag.Bool(WaspConnUtxodbConfirmRandomize, false, "is confirmation time random with the mean at confirmation delay")
