@@ -151,7 +151,7 @@ func (wconn *WaspConnector) detach() {
 func (wconn *WaspConnector) subscribe(addr *address.Address) {
 	_, ok := wconn.subscriptions[*addr]
 	if !ok {
-		wconn.log.Debugf("subscribed to address: %s", addr.String())
+		wconn.log.Infof("subscribed to address: %s", addr.String())
 		wconn.subscriptions[*addr] = 0
 	}
 }
