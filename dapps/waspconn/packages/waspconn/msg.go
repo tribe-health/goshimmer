@@ -7,6 +7,7 @@ import (
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"io"
+	"sort"
 )
 
 const (
@@ -573,4 +574,28 @@ func InclusionLevelText(level byte) string {
 		return ret
 	}
 	return "wrong code"
+}
+
+func BalancesToString(outs map[transaction.ID][]*balance.Balance) string {
+	if outs == nil {
+		return "empty balances"
+	}
+
+	txids := make([]transaction.ID, 0, len(outs))
+	for txid := range outs {
+		txids = append(txids, txid)
+	}
+	sort.Slice(txids, func(i, j int) bool {
+		return bytes.Compare(txids[i][:], txids[j][:]) < 0
+	})
+
+	ret := ""
+	for _, txid := range txids {
+		bals := outs[txid]
+		ret += txid.String() + ":\n"
+		for _, bal := range bals {
+			ret += fmt.Sprintf("         %s: %d\n", bal.Color.String(), bal.Value)
+		}
+	}
+	return ret
 }

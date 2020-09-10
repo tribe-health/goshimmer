@@ -76,6 +76,8 @@ func (wconn *WaspConnector) sendTxInclusionLevelToWasp(inclLevel byte, txid *tra
 
 // query outputs database and collects transactions containing unprocessed requests
 func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
+	wconn.log.Infow("pushBacklogToWasp", "addr", addr.String())
+
 	outs, err := wconn.vtangle.GetConfirmedAddressOutputs(*addr)
 	if err != nil {
 		wconn.log.Error(err)
@@ -84,11 +86,13 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 	if len(outs) == 0 {
 		return
 	}
-	outputs := waspconn.OutputsToBalances(outs)
+	balances := waspconn.OutputsToBalances(outs)
+	wconn.log.Infof("pushBacklogToWasp. addr: %s, balances:\n%s\n",
+		addr.String(), waspconn.BalancesToString(balances))
 
-	// collect all colors of outputs
-	allColors := make(map[transaction.ID]bool)
-	for _, bals := range outputs {
+	// collect all colors of balances
+	allColorsMap := make(map[transaction.ID]bool)
+	for _, bals := range balances {
 		for _, b := range bals {
 			col := b.Color
 			if col == balance.ColorIOTA {
@@ -98,26 +102,34 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address) {
 				wconn.log.Errorf("unexpected balance.ColorNew")
 				continue
 			}
-			allColors[(transaction.ID)(b.Color)] = true
+			allColorsMap[(transaction.ID)(b.Color)] = true
 		}
 	}
+	allColors := make([]transaction.ID, 0, len(allColorsMap))
+	for addr := range allColorsMap {
+		allColors = append(allColors, addr)
+	}
+	wconn.log.Infof("pushBacklogToWasp: allColors: %+v\n", allColors)
 
 	// for each color we try to load corresponding origin transaction.
-	// if the transaction exist and it is among the outputs of the address,
+	// if the transaction exist and it is among the balances of the address,
 	// the send balances with the transaction as address update
 	sentTxs := make([]transaction.ID, 0)
-	for txid := range allColors {
+	for _, txid := range allColors {
 		tx := wconn.vtangle.GetConfirmedTransaction(&txid)
 		if tx == nil {
 			wconn.log.Warnf("can't find the origin tx for the color %s. It may be snapshotted", txid.String())
 			continue
 		}
-		if _, ok := outputs[txid]; !ok {
-			// the transaction taken by color is not among transaction in outputs of the address.
+		if _, ok := balances[txid]; !ok {
+			// the transaction taken by color is not among transaction in balances of the address.
 			// Irrelevant to the backlog, skip it.
 			continue
 		}
-		if err := wconn.sendAddressUpdateToWasp(addr, outputs, tx); err != nil {
+
+		wconn.log.Infof("pushBacklogToWasp: sending update with tx: %s\n", tx.String())
+
+		if err := wconn.sendAddressUpdateToWasp(addr, balances, tx); err != nil {
 			wconn.log.Errorf("sendAddressUpdateToWasp: %v", err)
 		} else {
 			sentTxs = append(sentTxs, txid)
