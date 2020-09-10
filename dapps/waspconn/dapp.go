@@ -121,8 +121,9 @@ func runPlugin(_ *node.Plugin) {
 
 		<-shutdownSignal
 
-		log.Infof("Detaching WaspConn from the Value Tangle..")
-		vtangle.Detach()
+		log.Infof("stop WaspConn plugin..")
+		//log.Infof("Detaching WaspConn from the Value Tangle..")
+		//vtangle.Detach()
 
 		//log.Infof("Stopping WaspConn listener..")
 		//_ = listener.Close()
