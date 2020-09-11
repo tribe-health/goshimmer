@@ -151,7 +151,7 @@ func (wconn *WaspConnector) detach() {
 func (wconn *WaspConnector) subscribe(addr *address.Address, color *balance.Color) {
 	_, ok := wconn.subscriptions[*addr]
 	if !ok {
-		wconn.log.Infof("subscribed to address: %s", addr.String())
+		wconn.log.Infof("subscribed to address %s with color %s", addr.String(), color.String())
 		wconn.subscriptions[*addr] = *color
 	}
 }
