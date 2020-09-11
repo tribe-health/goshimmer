@@ -50,6 +50,9 @@ func NewRealValueTangle() *valuetangle {
 	v := &valuetangle{}
 
 	v.txConfirmedClosure = events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata) {
+		defer ctx.Release()
+		defer ctxMeta.Release()
+
 		if v.txConfirmedCallback == nil {
 			return
 		}
@@ -60,6 +63,9 @@ func NewRealValueTangle() *valuetangle {
 	valuetransfers.Tangle().Events.TransactionConfirmed.Attach(v.txConfirmedClosure)
 
 	v.txBookedClosure = events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata, decisionPending bool) {
+		defer ctx.Release()
+		defer ctxMeta.Release()
+
 		if v.txBookedCallback == nil {
 			return
 		}
@@ -70,6 +76,9 @@ func NewRealValueTangle() *valuetangle {
 	valuetransfers.Tangle().Events.TransactionBooked.Attach(v.txBookedClosure)
 
 	v.txFinalizedClosure = events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata) {
+		defer ctx.Release()
+		defer ctxMeta.Release()
+
 		if v.txFinalizedCallback == nil {
 			return
 		}
@@ -80,6 +89,9 @@ func NewRealValueTangle() *valuetangle {
 	valuetransfers.Tangle().Events.TransactionFinalized.Attach(v.txFinalizedClosure)
 
 	v.txRejectedClosure = events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata) {
+		defer ctx.Release()
+		defer ctxMeta.Release()
+
 		if v.txRejectedCallback == nil {
 			return
 		}
