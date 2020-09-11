@@ -20,7 +20,7 @@ import (
 type WaspConnector struct {
 	id                                 string
 	bconn                              *buffconn.BufferedConnection
-	subscriptions                      map[address.Address]int
+	subscriptions                      map[address.Address]balance.Color
 	inTxChan                           chan interface{}
 	exitConnChan                       chan struct{}
 	receiveConfirmedTransactionClosure *events.Closure
@@ -78,7 +78,7 @@ func (wconn *WaspConnector) SetId(id string) {
 }
 
 func (wconn *WaspConnector) attach() {
-	wconn.subscriptions = make(map[address.Address]int)
+	wconn.subscriptions = make(map[address.Address]balance.Color)
 	wconn.inTxChan = make(chan interface{})
 
 	wconn.receiveConfirmedTransactionClosure = events.NewClosure(func(vtx *transaction.Transaction) {
@@ -148,11 +148,11 @@ func (wconn *WaspConnector) detach() {
 	wconn.log.Debugf("detached waspconn")
 }
 
-func (wconn *WaspConnector) subscribe(addr *address.Address) {
+func (wconn *WaspConnector) subscribe(addr *address.Address, color *balance.Color) {
 	_, ok := wconn.subscriptions[*addr]
 	if !ok {
 		wconn.log.Infof("subscribed to address: %s", addr.String())
-		wconn.subscriptions[*addr] = 0
+		wconn.subscriptions[*addr] = *color
 	}
 }
 

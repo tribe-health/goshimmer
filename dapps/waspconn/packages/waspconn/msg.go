@@ -47,8 +47,12 @@ type WaspToNodeTransactionMsg struct {
 	Leader    uint16                   // leader index
 }
 
+type AddressColor struct {
+	Address address.Address
+	Color   balance.Color
+}
 type WaspToNodeSubscribeMsg struct {
-	Addresses []address.Address
+	AddressesWithColors []AddressColor
 }
 
 type WaspToNodeGetConfirmedTransactionMsg struct {
@@ -289,11 +293,14 @@ func (msg *WaspToNodeTransactionMsg) Read(r io.Reader) error {
 }
 
 func (msg *WaspToNodeSubscribeMsg) Write(w io.Writer) error {
-	if err := WriteUint16(w, uint16(len(msg.Addresses))); err != nil {
+	if err := WriteUint16(w, uint16(len(msg.AddressesWithColors))); err != nil {
 		return err
 	}
-	for _, addr := range msg.Addresses {
-		if _, err := w.Write(addr[:]); err != nil {
+	for _, addrCol := range msg.AddressesWithColors {
+		if _, err := w.Write(addrCol.Address[:]); err != nil {
+			return err
+		}
+		if _, err := w.Write(addrCol.Color[:]); err != nil {
 			return err
 		}
 	}
@@ -305,9 +312,12 @@ func (msg *WaspToNodeSubscribeMsg) Read(r io.Reader) error {
 	if err := ReadUint16(r, &size); err != nil {
 		return err
 	}
-	msg.Addresses = make([]address.Address, size)
-	for i := range msg.Addresses {
-		if err := ReadAddress(r, &msg.Addresses[i]); err != nil {
+	msg.AddressesWithColors = make([]AddressColor, size)
+	for i := range msg.AddressesWithColors {
+		if err := ReadAddress(r, &msg.AddressesWithColors[i].Address); err != nil {
+			return err
+		}
+		if err := ReadColor(r, &msg.AddressesWithColors[i].Color); err != nil {
 			return err
 		}
 	}
@@ -556,6 +566,30 @@ func BalancesToOutputs(addr address.Address, bals map[transaction.ID][]*balance.
 			panic("txid == niltxid")
 		}
 		ret[transaction.NewOutputID(addr, txid)] = bal
+	}
+	return ret
+}
+
+func OutputBalancesByColor(outs map[transaction.OutputID][]*balance.Balance) (map[balance.Color]int64, int64) {
+	ret := make(map[balance.Color]int64)
+	var total int64
+	for _, bals := range outs {
+		for _, b := range bals {
+			if s, ok := ret[b.Color]; !ok {
+				ret[b.Color] = b.Value
+			} else {
+				ret[b.Color] = s + b.Value
+			}
+			total += b.Value
+		}
+	}
+	return ret, total
+}
+
+func BalancesByColorToString(bals map[balance.Color]int64) string {
+	ret := ""
+	for col, b := range bals {
+		ret += fmt.Sprintf("      %s: %d\n", col.String(), b)
 	}
 	return ret
 }

@@ -35,12 +35,12 @@ func (wconn *WaspConnector) processMsgDataFromWasp(data []byte) {
 		wconn.postTransaction(msgt.Tx, &msgt.SCAddress, msgt.Leader)
 
 	case *waspconn.WaspToNodeSubscribeMsg:
-		for _, addr := range msgt.Addresses {
-			wconn.subscribe(&addr)
+		for _, addrCol := range msgt.AddressesWithColors {
+			wconn.subscribe(&addrCol.Address, &addrCol.Color)
 		}
 		go func() {
-			for _, addr := range msgt.Addresses {
-				wconn.pushBacklogToWasp(&addr)
+			for _, addrCol := range msgt.AddressesWithColors {
+				wconn.pushBacklogToWasp(&addrCol.Address, &addrCol.Color)
 			}
 		}()
 
