@@ -76,7 +76,7 @@ func (wconn *WaspConnector) sendTxInclusionLevelToWasp(inclLevel byte, txid *tra
 
 // query outputs database and collects transactions containing unprocessed requests
 func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address, scColor *balance.Color) {
-	wconn.log.Infow("pushBacklogToWasp", "col", addr.String())
+	wconn.log.Infow("pushBacklogToWasp", "addr", addr.String(), "col", addr.String())
 
 	outs, err := wconn.vtangle.GetConfirmedAddressOutputs(*addr)
 	if err != nil {
