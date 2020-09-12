@@ -76,8 +76,6 @@ func (wconn *WaspConnector) sendTxInclusionLevelToWasp(inclLevel byte, txid *tra
 
 // query outputs database and collects transactions containing unprocessed requests
 func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address, scColor *balance.Color) {
-	wconn.log.Infow("pushBacklogToWasp", "addr", addr.String(), "col", scColor.String())
-
 	outs, err := wconn.vtangle.GetConfirmedAddressOutputs(*addr)
 	if err != nil {
 		wconn.log.Errorf("pushBacklogToWasp: %v", err)
@@ -89,7 +87,7 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address, scColor *ba
 	balances := waspconn.OutputsToBalances(outs)
 	colors, _ := waspconn.OutputBalancesByColor(outs)
 
-	wconn.log.Infof("pushBacklogToWasp: balances of addr %s by color:\n%s",
+	wconn.log.Debugf("pushBacklogToWasp: balances of addr %s by color:\n%s",
 		addr.String(), waspconn.BalancesByColorToString(colors))
 
 	allColorsAsTxid := make([]transaction.ID, 0, len(colors))
@@ -107,7 +105,7 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address, scColor *ba
 		}
 		allColorsAsTxid = append(allColorsAsTxid, (transaction.ID)(col))
 	}
-	wconn.log.Infof("pushBacklogToWasp: txids to push: %+v\n", allColorsAsTxid)
+	wconn.log.Debugf("pushBacklogToWasp: txids to push: %+v\n", allColorsAsTxid)
 
 	// for each color we try to load corresponding origin transaction.
 	// if the transaction exist and it is among the balances of the address,
@@ -125,7 +123,7 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address, scColor *ba
 			continue
 		}
 
-		wconn.log.Infof("pushBacklogToWasp: sending update with txid: %s\n", tx.ID().String())
+		wconn.log.Debugf("pushBacklogToWasp: sending update with txid: %s\n", tx.ID().String())
 
 		if err := wconn.sendAddressUpdateToWasp(addr, balances, tx); err != nil {
 			wconn.log.Errorf("pushBacklogToWasp:sendAddressUpdateToWasp: %v", err)
@@ -133,5 +131,5 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address, scColor *ba
 			sentTxs = append(sentTxs, txid)
 		}
 	}
-	wconn.log.Infof("pushBacklogToWasp for addr %s. sent txids: %+v", addr.String(), sentTxs)
+	wconn.log.Infof("pushed backlog to Wasp for addr %s. sent transactions: %+v", addr.String(), sentTxs)
 }

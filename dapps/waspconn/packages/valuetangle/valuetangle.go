@@ -24,7 +24,6 @@ type ValueTangle interface {
 	GetTxInclusionLevel(txid *transaction.ID) byte
 	OnTransactionConfirmed(func(tx *transaction.Transaction))
 	OnTransactionBooked(func(tx *transaction.Transaction, decisionPending bool))
-	OnTransactionFinalized(func(tx *transaction.Transaction))
 	OnTransactionRejected(func(tx *transaction.Transaction))
 	IsConfirmed(txid *transaction.ID) (bool, error)
 	PostTransaction(tx *transaction.Transaction) error
@@ -38,9 +37,6 @@ type valuetangle struct {
 
 	txBookedClosure  *events.Closure
 	txBookedCallback func(tx *transaction.Transaction, decisionPending bool)
-
-	txFinalizedClosure  *events.Closure
-	txFinalizedCallback func(tx *transaction.Transaction)
 
 	txRejectedClosure  *events.Closure
 	txRejectedCallback func(tx *transaction.Transaction)
@@ -75,19 +71,6 @@ func NewRealValueTangle() *valuetangle {
 	})
 	valuetransfers.Tangle().Events.TransactionBooked.Attach(v.txBookedClosure)
 
-	v.txFinalizedClosure = events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata) {
-		defer ctx.Release()
-		defer ctxMeta.Release()
-
-		if v.txFinalizedCallback == nil {
-			return
-		}
-		if tx := ctx.Unwrap(); tx != nil {
-			v.txFinalizedCallback(tx)
-		}
-	})
-	valuetransfers.Tangle().Events.TransactionFinalized.Attach(v.txFinalizedClosure)
-
 	v.txRejectedClosure = events.NewClosure(func(ctx *transaction.CachedTransaction, ctxMeta *tangle.CachedTransactionMetadata) {
 		defer ctx.Release()
 		defer ctxMeta.Release()
@@ -107,7 +90,6 @@ func NewRealValueTangle() *valuetangle {
 func (v *valuetangle) Detach() {
 	valuetransfers.Tangle().Events.TransactionConfirmed.Detach(v.txConfirmedClosure)
 	valuetransfers.Tangle().Events.TransactionBooked.Detach(v.txBookedClosure)
-	valuetransfers.Tangle().Events.TransactionFinalized.Detach(v.txFinalizedClosure)
 	valuetransfers.Tangle().Events.TransactionRejected.Detach(v.txRejectedClosure)
 }
 
@@ -117,10 +99,6 @@ func (v *valuetangle) OnTransactionConfirmed(cb func(tx *transaction.Transaction
 
 func (v *valuetangle) OnTransactionBooked(cb func(tx *transaction.Transaction, decisionPending bool)) {
 	v.txBookedCallback = cb
-}
-
-func (v *valuetangle) OnTransactionFinalized(cb func(tx *transaction.Transaction)) {
-	v.txFinalizedCallback = cb
 }
 
 func (v *valuetangle) OnTransactionRejected(cb func(tx *transaction.Transaction)) {

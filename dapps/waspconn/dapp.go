@@ -83,9 +83,6 @@ func configPlugin(plugin *node.Plugin) {
 		log.Debugf("on transaction booked: %s, decisionPending: %v", tx.ID().String(), decisionPending)
 		connector.EventValueTransactionBooked.Trigger(tx)
 	})
-	//vtangle.OnTransactionFinalized(func(tx *transaction.Transaction) {
-	//	log.Debugf("on transaction finalized: %s", tx.ID().String())
-	//})
 	vtangle.OnTransactionRejected(func(tx *transaction.Transaction) {
 		log.Debugf("on transaction rejected: %s", tx.ID().String())
 		connector.EventValueTransactionRejected.Trigger(tx)

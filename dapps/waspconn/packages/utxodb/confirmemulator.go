@@ -162,9 +162,6 @@ func (ce *ConfirmEmulator) OnTransactionConfirmed(cb func(tx *transaction.Transa
 func (ce *ConfirmEmulator) OnTransactionBooked(f func(_ *transaction.Transaction, _ bool)) {
 }
 
-func (ce *ConfirmEmulator) OnTransactionFinalized(f func(tx *transaction.Transaction)) {
-}
-
 func (ce *ConfirmEmulator) OnTransactionRejected(f func(tx *transaction.Transaction)) {
 }
 
