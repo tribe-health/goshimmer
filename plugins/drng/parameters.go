@@ -1,23 +1,31 @@
 package drng
 
 import (
+	"encoding/json"
+
 	flag "github.com/spf13/pflag"
 )
 
 const (
-	// CfgDRNGInstanceID defines the config flag of the DRNG instanceID.
-	CfgDRNGInstanceID = "drng.instanceId"
-	// CfgDRNGThreshold defines the config flag of the DRNG threshold.
-	CfgDRNGThreshold = "drng.threshold"
-	// CfgDRNGDistributedPubKey defines the config flag of the DRNG distributed Public Key.
-	CfgDRNGDistributedPubKey = "drng.distributedPubKey"
-	// CfgDRNGCommitteeMembers defines the config flag of the DRNG committee members identities.
-	CfgDRNGCommitteeMembers = "drng.committeeMembers"
+	// CfgDRNG defines the config flag of the DRNG.
+	CfgDRNG = "drng"
 )
 
 func init() {
-	flag.Uint32(CfgDRNGInstanceID, 1, "instance ID of the drng instance")
-	flag.Uint32(CfgDRNGThreshold, 3, "BLS threshold of the drng")
-	flag.String(CfgDRNGDistributedPubKey, "", "distributed public key of the committee (hex encoded)")
-	flag.StringSlice(CfgDRNGCommitteeMembers, []string{}, "list of committee members of the drng")
+	flag.String(CfgDRNG, `"definitions":[{"instanceID":1, "threshold": 3, "distributedPubKey":"", "committeeMemebers":[]}]`, "dRNG default configuration")
+}
+
+type Definitions []definition
+
+type definition struct {
+	InstanceID        uint32
+	Threshold         uint32
+	DistributedPubKey string
+	CommitteeMembers  []string
+}
+
+func parseCfg(cfg string) Definitions {
+	var d Definitions
+	json.Unmarshal([]byte(cfg), &d)
+	return d
 }

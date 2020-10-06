@@ -21,34 +21,42 @@ var (
 
 func configureDRNG() *drng.DRNG {
 	log = logger.NewLogger(PluginName)
-	// parse identities of the committee members
-	committeeMembers, err := parseCommitteeMembers()
-	if err != nil {
-		log.Warnf("Invalid %s: %s", CfgDRNGCommitteeMembers, err)
-	}
+	configuration := make(map[uint32][]state.Option)
 
-	// parse distributed public key of the committee
-	var dpk []byte
-	if str := config.Node().GetString(CfgDRNGDistributedPubKey); str != "" {
-		bytes, err := hex.DecodeString(str)
+	committees := parseCfg(config.Node().GetString(CfgDRNG))
+
+	for _, committee := range committees {
+		// parse identities of the committee members
+		committeeMembers, err := parseCommitteeMembers(committee.CommitteeMembers)
 		if err != nil {
-			log.Warnf("Invalid %s: %s", CfgDRNGDistributedPubKey, err)
+			log.Warnf("Invalid %s: %s", committee.CommitteeMembers, err)
 		}
-		if l := len(bytes); l != cbPayload.PublicKeySize {
-			log.Warnf("Invalid %s length: %d, need %d", CfgDRNGDistributedPubKey, l, cbPayload.PublicKeySize)
+
+		// parse distributed public key of the committee
+		var dpk []byte
+		if committee.DistributedPubKey != "" {
+			bytes, err := hex.DecodeString(committee.DistributedPubKey)
+			if err != nil {
+				log.Warnf("Invalid %s: %s", committee.DistributedPubKey, err)
+			}
+			if l := len(bytes); l != cbPayload.PublicKeySize {
+				log.Warnf("Invalid %s length: %d, need %d", committee.DistributedPubKey, l, cbPayload.PublicKeySize)
+			}
+			dpk = append(dpk, bytes...)
 		}
-		dpk = append(dpk, bytes...)
+
+		// configure committee
+		committeeConf := &state.Committee{
+			InstanceID:    committee.InstanceID,
+			Threshold:     uint8(committee.Threshold),
+			DistributedPK: dpk,
+			Identities:    committeeMembers,
+		}
+
+		configuration[committee.InstanceID] = []state.Option{state.SetCommittee(committeeConf)}
 	}
 
-	// configure committee
-	committeeConf := &state.Committee{
-		InstanceID:    config.Node().GetUint32(CfgDRNGInstanceID),
-		Threshold:     uint8(config.Node().GetUint32(CfgDRNGThreshold)),
-		DistributedPK: dpk,
-		Identities:    committeeMembers,
-	}
-
-	return drng.New(state.SetCommittee(committeeConf))
+	return drng.New(configuration)
 }
 
 // Instance returns the DRNG instance.
@@ -57,8 +65,8 @@ func Instance() *drng.DRNG {
 	return instance
 }
 
-func parseCommitteeMembers() (result []ed25519.PublicKey, err error) {
-	for _, committeeMember := range config.Node().GetStringSlice(CfgDRNGCommitteeMembers) {
+func parseCommitteeMembers(members []string) (result []ed25519.PublicKey, err error) {
+	for _, committeeMember := range members {
 		if committeeMember == "" {
 			continue
 		}

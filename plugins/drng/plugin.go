@@ -65,7 +65,7 @@ func configureEvents() {
 				log.Info(err)
 				return
 			}
-			log.Info(instance.State.Randomness())
+			//log.Info(instance.State.Randomness())
 		})
 	}))
 }

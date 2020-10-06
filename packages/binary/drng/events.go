@@ -14,5 +14,5 @@ type Event struct {
 }
 
 func randomnessReceived(handler interface{}, params ...interface{}) {
-	handler.(func(state.Randomness))(params[0].(state.Randomness))
+	handler.(func(*state.State))(params[0].(*state.State))
 }

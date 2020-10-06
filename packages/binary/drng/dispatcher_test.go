@@ -62,9 +62,11 @@ func TestDispatcher(t *testing.T) {
 	marshalUtil := marshalutil.New(dummyPayload().Bytes())
 	parsedPayload, err := payload.Parse(marshalUtil)
 	require.NoError(t, err)
+	config := make(map[uint32][]state.Option)
+	config[1] = []state.Option{state.SetCommittee(committeeTest)}
 
-	drng := New(state.SetCommittee(committeeTest))
+	drng := New(config)
 	err = drng.Dispatch(issuerPK, timestampTest, parsedPayload)
 	require.NoError(t, err)
-	require.Equal(t, *randomnessTest, drng.State.Randomness())
+	require.Equal(t, *randomnessTest, drng.State[1].Randomness())
 }
