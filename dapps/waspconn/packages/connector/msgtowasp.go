@@ -84,22 +84,22 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address, scColor *ba
 	if len(outs) == 0 {
 		return
 	}
-	balances := waspconn.OutputsToBalances(outs)
-	colors, _ := waspconn.OutputBalancesByColor(outs)
+	balancesByTx := waspconn.OutputsToBalances(outs)
+	balancesByColor, _ := waspconn.OutputBalancesByColor(outs)
 
-	wconn.log.Debugf("pushBacklogToWasp: balances of addr %s by transaction:\n%s",
-		addr.String(), waspconn.OutputsByTransactionToString(balances))
+	wconn.log.Debugf("pushBacklogToWasp: balancesByTx of addr %s by transaction:\n%s",
+		addr.String(), waspconn.OutputsByTransactionToString(balancesByTx))
 
-	wconn.log.Debugf("pushBacklogToWasp: balances of addr %s by color:\n%s",
-		addr.String(), waspconn.BalancesByColorToString(colors))
+	wconn.log.Debugf("pushBacklogToWasp: balancesByTx of addr %s by color:\n%s",
+		addr.String(), waspconn.BalancesByColorToString(balancesByColor))
 
-	allColorsAsTxid := make([]transaction.ID, 0, len(colors))
-	for col, b := range colors {
+	allColorsAsTxid := make([]transaction.ID, 0, len(balancesByColor))
+	for col, b := range balancesByColor {
 		if col == balance.ColorIOTA {
 			continue
 		}
 		if col == balance.ColorNew {
-			wconn.log.Warnf("pushBacklogToWasp: unexpected ColorNew encountered in the balances of address %s", addr.String())
+			wconn.log.Warnf("pushBacklogToWasp: unexpected ColorNew encountered in the balancesByTx of address %s", addr.String())
 			continue
 		}
 		if col == *scColor && b == 1 {
@@ -108,11 +108,11 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address, scColor *ba
 		}
 		allColorsAsTxid = append(allColorsAsTxid, (transaction.ID)(col))
 	}
-	wconn.log.Debugf("pushBacklogToWasp: txids to push: %+v\n", allColorsAsTxid)
+	wconn.log.Debugf("pushBacklogToWasp: color candidates for request transactions: %+v\n", allColorsAsTxid)
 
 	// for each color we try to load corresponding origin transaction.
-	// if the transaction exist and it is among the balances of the address,
-	// then send balances with the transaction as address update
+	// if the transaction exist and it is among the balancesByTx of the address,
+	// then send balancesByTx with the transaction as address update
 	sentTxs := make([]transaction.ID, 0)
 	for _, txid := range allColorsAsTxid {
 		tx := wconn.vtangle.GetConfirmedTransaction(&txid)
@@ -120,15 +120,10 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address, scColor *ba
 			wconn.log.Warnf("pushBacklogToWasp: can't find the origin tx for the color %s. It may be snapshotted", txid.String())
 			continue
 		}
-		if _, ok := balances[txid]; !ok {
-			// the transaction taken by color is not among transaction in balances of the address.
-			// Irrelevant to the backlog, skip it.
-			continue
-		}
 
 		wconn.log.Debugf("pushBacklogToWasp: sending update with txid: %s\n", tx.ID().String())
 
-		if err := wconn.sendAddressUpdateToWasp(addr, balances, tx); err != nil {
+		if err := wconn.sendAddressUpdateToWasp(addr, balancesByTx, tx); err != nil {
 			wconn.log.Errorf("pushBacklogToWasp:sendAddressUpdateToWasp: %v", err)
 		} else {
 			sentTxs = append(sentTxs, txid)
