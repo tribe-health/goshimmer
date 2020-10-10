@@ -586,6 +586,17 @@ func OutputBalancesByColor(outs map[transaction.OutputID][]*balance.Balance) (ma
 	return ret, total
 }
 
+func OutputsByTransactionToString(outs map[transaction.ID][]*balance.Balance) string {
+	ret := ""
+	for txid, bals := range outs {
+		ret += fmt.Sprintf("     %s:\n", txid.String())
+		for _, b := range bals {
+			ret += fmt.Sprintf("            %s: %d\n", b.Color.String(), b.Value)
+		}
+	}
+	return ret
+}
+
 func BalancesByColorToString(bals map[balance.Color]int64) string {
 	ret := ""
 	for col, b := range bals {

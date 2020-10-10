@@ -87,6 +87,9 @@ func (wconn *WaspConnector) pushBacklogToWasp(addr *address.Address, scColor *ba
 	balances := waspconn.OutputsToBalances(outs)
 	colors, _ := waspconn.OutputBalancesByColor(outs)
 
+	wconn.log.Debugf("pushBacklogToWasp: balances of addr %s by transaction:\n%s",
+		addr.String(), waspconn.OutputsByTransactionToString(balances))
+
 	wconn.log.Debugf("pushBacklogToWasp: balances of addr %s by color:\n%s",
 		addr.String(), waspconn.BalancesByColorToString(colors))
 
