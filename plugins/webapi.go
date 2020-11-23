@@ -9,6 +9,7 @@ import (
 	"github.com/iotaledger/goshimmer/plugins/webapi/healthz"
 	"github.com/iotaledger/goshimmer/plugins/webapi/info"
 	"github.com/iotaledger/goshimmer/plugins/webapi/message"
+	"github.com/iotaledger/goshimmer/plugins/webapi/pow"
 	"github.com/iotaledger/goshimmer/plugins/webapi/tools"
 	"github.com/iotaledger/goshimmer/plugins/webapi/value"
 	"github.com/iotaledger/hive.go/node"
@@ -26,4 +27,5 @@ var WebAPI = node.Plugins(
 	info.Plugin(),
 	value.Plugin(),
 	tools.Plugin(),
+	pow.Plugin(),
 )
