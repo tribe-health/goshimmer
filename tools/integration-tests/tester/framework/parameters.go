@@ -13,8 +13,8 @@ const (
 
 	logsDir = "/tmp/logs/"
 
-	disabledPluginsEntryNode = "portcheck,dashboard,analysis-client,profiling,gossip,drng,issuer,syncbeaconfollower,metrics,valuetransfers,consensus,messagelayer,pow,webapi,webapibroadcastdataendpoint,webapifindtransactionhashesendpoint,webapigetneighborsendpoint,webapigettransactionobjectsbyhashendpoint,webapigettransactiontrytesbyhashendpoint"
-	disabledPluginsPeer      = "portcheck,dashboard,analysis-client,profiling"
+	disabledPluginsEntryNode = "portcheck,dashboard,analysis-client,profiling,clock,gossip,drng,issuer,syncbeaconfollower,metrics,valuetransfers,consensus,messagelayer,pow,webapi,webapibroadcastdataendpoint,webapifindtransactionhashesendpoint,webapigetneighborsendpoint,webapigettransactionobjectsbyhashendpoint,webapigettransactiontrytesbyhashendpoint"
+	disabledPluginsPeer      = "portcheck,dashboard,analysis-client,profiling,clock,metrics"
 	snapshotFilePath         = "/assets/7R1itJx5hVuo9w9hjg5cwKFmek4HMSoBDgJZN8hKGxih.bin"
 	dockerLogsPrefixLen      = 8
 
@@ -43,9 +43,9 @@ var (
 	// ParaSyncBeaconOnEveryNode defines whether all nodes should be sync beacons.
 	ParaSyncBeaconOnEveryNode = false
 	// ParaFPCRoundInterval defines how long a round lasts (in seconds)
-	ParaFPCRoundInterval int64 = 5
+	ParaFPCRoundInterval int64 = 10
 	// ParaWaitForStatement is the time in seconds for which the node wait for receiveing the new statement.
-	ParaWaitForStatement = 3
+	ParaWaitForStatement = 5
 	// ParaFPCListen defines if the FPC service should listen.
 	ParaFPCListen = false
 )

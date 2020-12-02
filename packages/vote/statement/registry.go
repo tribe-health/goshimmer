@@ -2,6 +2,7 @@ package statement
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
@@ -152,15 +153,20 @@ func (v *View) TimestampOpinion(id tangle.MessageID) Opinions {
 func (v *View) Query(ctx context.Context, conflictIDs []string, timestampIDs []string) (vote.Opinions, error) {
 	answer := vote.Opinions{}
 	for _, id := range conflictIDs {
+		s := ""
 		ID, err := transaction.IDFromBase58(id)
 		if err != nil {
 			return answer, err
 		}
+		s += fmt.Sprintf("ID: %v  - ", ID)
 		o := v.ConflictOpinion(ID)
 		opinion := vote.Unknown
 		if len(o) > 0 {
 			opinion = o.Last().Value
+			s += fmt.Sprintf("Round: %d  -  ", o.Last().Round)
 		}
+		s += fmt.Sprintf("Opinion: %v", opinion)
+		fmt.Println(s)
 		answer = append(answer, opinion)
 	}
 	for _, id := range timestampIDs {

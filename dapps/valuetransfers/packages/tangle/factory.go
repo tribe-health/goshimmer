@@ -36,16 +36,16 @@ func (v *ValueObjectFactory) IssueTransaction(tx *transaction.Transaction) (valu
 		return
 	}
 
-	// check if the tx that is supposed to be issued is a double spend
-	tx.Inputs().ForEach(func(outputId transaction.OutputID) bool {
-		v.tangle.TransactionOutput(outputId).Consume(func(output *Output) {
-			if output.ConsumerCount() >= 1 {
-				err = ErrDoubleSpendForbidden
-			}
-		})
+	// // check if the tx that is supposed to be issued is a double spend
+	// tx.Inputs().ForEach(func(outputId transaction.OutputID) bool {
+	// 	v.tangle.TransactionOutput(outputId).Consume(func(output *Output) {
+	// 		if output.ConsumerCount() >= 1 {
+	// 			err = ErrDoubleSpendForbidden
+	// 		}
+	// 	})
 
-		return err == nil
-	})
+	// 	return err == nil
+	// })
 	if err != nil {
 		return
 	}

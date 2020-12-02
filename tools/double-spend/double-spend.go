@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/iotaledger/goshimmer/client"
@@ -81,37 +80,38 @@ func main() {
 	conflictingMsgIDs := make([]string, 2)
 	receiverSeeds := make([]*walletseed.Seed, 2)
 
-	var wg sync.WaitGroup
+	// var wg sync.WaitGroup
 	for i := range conflictingTxs {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
+		// wg.Add(1)
+		// go func(i int) {
+		// 	defer wg.Done()
 
-			// create a new receiver wallet for the given conflict
-			receiverSeeds[i] = walletseed.NewSeed()
-			destAddr := receiverSeeds[i].Address(0)
+		// create a new receiver wallet for the given conflict
+		receiverSeeds[i] = walletseed.NewSeed()
+		destAddr := receiverSeeds[i].Address(0)
 
-			tx := transaction.New(
-				transaction.NewInputs(out),
-				transaction.NewOutputs(map[address.Address][]*balance.Balance{
-					destAddr.Address: {
-						{Value: 1337, Color: balance.ColorIOTA},
-					},
-				}))
-			tx = tx.Sign(signaturescheme.ED25519(*mySeed.KeyPair(0)))
-			conflictingTxs[i] = tx
+		tx := transaction.New(
+			transaction.NewInputs(out),
+			transaction.NewOutputs(map[address.Address][]*balance.Balance{
+				destAddr.Address: {
+					{Value: 1337, Color: balance.ColorIOTA},
+				},
+			}))
+		tx = tx.Sign(signaturescheme.ED25519(*mySeed.KeyPair(0)))
+		conflictingTxs[i] = tx
 
-			valueObject := valuepayload.New(valuepayload.GenesisID, valuepayload.GenesisID, tx)
+		valueObject := valuepayload.New(valuepayload.GenesisID, valuepayload.GenesisID, tx)
 
-			// issue the tx
-			conflictingMsgIDs[i], err = clients[i].SendPayload(valueObject.Bytes())
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
+		// issue the tx
+		conflictingMsgIDs[i], err = clients[i].SendPayload(valueObject.Bytes())
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
-			fmt.Printf("issued conflict transaction %s\n", conflictingMsgIDs[i])
-		}(i)
+		fmt.Printf("issued conflict transaction %s\n", conflictingMsgIDs[i])
+		time.Sleep(6 * time.Second)
+		// }(i)
 	}
-	wg.Wait()
+	// wg.Wait()
 }

@@ -143,7 +143,13 @@ func configureFPC() {
 		makeStatement(roundStats)
 		peersQueried := len(roundStats.QueriedOpinions)
 		voteContextsCount := len(roundStats.ActiveVoteContexts)
-		log.Debugf("executed round with rand %0.4f for %d vote contexts on %d peers, took %v", roundStats.RandUsed, voteContextsCount, peersQueried, roundStats.Duration)
+		log.Info("executed round with rand %0.4f for %d vote contexts on %d peers, took %v", roundStats.RandUsed, voteContextsCount, peersQueried, roundStats.Duration)
+		// for k, c := range roundStats.ActiveVoteContexts{
+		// 	log.Info("Context for :", k)
+		// 	log.Info("Round: ", c.Rounds)
+		// 	log.Info("Opinion: ", c.Opinions)
+		// }
+		// log.Info(roundStats)
 	}))
 
 	Voter().Events().Finalized.Attach(events.NewClosure(valuetransfers.FCOB().ProcessVoteResult))

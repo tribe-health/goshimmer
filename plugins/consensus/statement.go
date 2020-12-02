@@ -74,6 +74,8 @@ func readStatement(cachedMsgEvent *tangle.CachedMessageEvent) {
 			return
 		}
 
+		log.Info("read statement %s", statementPayload)
+
 		// TODO: check if the Mana threshold of the issuer is ok
 
 		issuerID := identity.NewID(msg.IssuerPublicKey())

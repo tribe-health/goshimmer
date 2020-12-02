@@ -47,10 +47,13 @@ services:
       --valueLayer.snapshot.file=/tmp/assets/7R1itJx5hVuo9w9hjg5cwKFmek4HMSoBDgJZN8hKGxih.bin
       --syncbeacon.broadcastInterval=5
       --syncbeacon.startSynced=true
+      --fpc.listen=false
     volumes:
       - ./config.docker.json:/tmp/config.json:ro
       - goshimmer-cache:/go
       - ../integration-tests/assets:/tmp/assets
+    expose:
+      - "10895/tcp" # FPC (within Docker network)
     ports:
       - "127.0.0.1:8080:8080/tcp" # web API
       - "127.0.0.1:8081:8081/tcp" # dashboard
@@ -69,12 +72,18 @@ services:
       --valueLayer.snapshot.file=/tmp/assets/7R1itJx5hVuo9w9hjg5cwKFmek4HMSoBDgJZN8hKGxih.bin
       --node.disablePlugins=portcheck,clock
       --syncbeaconfollower.followNodes=EYsaGXnUVA9aTYL9FwYEvoQ8d1HCJveQVL7vogu6pqCP
+      --fpc.listen=false
     volumes:
       - ./config.docker.json:/tmp/config.json:ro
       - goshimmer-cache:/go
       - ../integration-tests/assets:/tmp/assets
+    # expose:
+    #   - "8080/tcp" # web API (within Docker network)
     expose:
-      - "8080/tcp" # web API (within Docker network)
+      - "10895/tcp" # FPC (within Docker network)
+    ports:
+      - "127.0.0.1:8090:8080/tcp" # web API
+      - "127.0.0.1:8091:8081/tcp" # dashboard
     depends_on:
       - entry_node
 

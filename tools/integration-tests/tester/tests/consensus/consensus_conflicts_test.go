@@ -28,7 +28,7 @@ func TestConsensusFiftyFiftyOpinionSplit(t *testing.T) {
 	backupFCoBAvgNetworkDelay := framework.ParaFCoBAverageNetworkDelay
 	backupBootstrapOnEveryNode := framework.ParaSyncBeaconOnEveryNode
 	backupParaWaitToKill := framework.ParaWaitToKill
-	framework.ParaFCoBAverageNetworkDelay = 90
+	framework.ParaFCoBAverageNetworkDelay = 120
 	framework.ParaSyncBeaconOnEveryNode = true
 	framework.ParaWaitToKill = 2 * framework.ParaFCoBAverageNetworkDelay
 
@@ -175,7 +175,7 @@ func TestConsensusFiftyFiftyOpinionSplit(t *testing.T) {
 			Finalized: tests.True(),
 		}
 	}
-	err = tests.AwaitTransactionInclusionState(n.Peers(), awaitFinalization, 2*time.Minute)
+	err = tests.AwaitTransactionInclusionState(n.Peers(), awaitFinalization, 4*time.Minute)
 	assert.NoError(t, err)
 
 	// now all transactions must be finalized and at most one must be confirmed
