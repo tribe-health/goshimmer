@@ -3,12 +3,13 @@ package chopper
 import (
 	"bytes"
 	"crypto/rand"
-	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/payload"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/iotaledger/goshimmer/packages/tangle"
+	"github.com/stretchr/testify/assert"
 )
 
-const maxChunkSize = payload.MaxMessageSize - 3
+const maxChunkSize = tangle.MaxMessageSize - 3
 
 func TestBasic(t *testing.T) {
 	dataShort := make([]byte, 2000)
@@ -20,13 +21,13 @@ func TestBasic(t *testing.T) {
 	dataLong2 := make([]byte, 1000000)
 	_, _ = rand.Read(dataLong2)
 
-	dataExact := make([]byte, payload.MaxMessageSize)
+	dataExact := make([]byte, tangle.MaxMessageSize)
 	_, _ = rand.Read(dataExact)
 
 	dataExact2 := make([]byte, 3*maxChunkSize)
 	_, _ = rand.Read(dataExact2)
 
-	dataExactPlus1 := make([]byte, payload.MaxMessageSize+1)
+	dataExactPlus1 := make([]byte, tangle.MaxMessageSize+1)
 	_, _ = rand.Read(dataExactPlus1)
 
 	_, ok := ChopData(dataShort, maxChunkSize)
@@ -82,7 +83,7 @@ func TestBasic(t *testing.T) {
 
 func testLength(chopped [][]byte) bool {
 	for _, d := range chopped {
-		if len(d) > payload.MaxMessageSize {
+		if len(d) > tangle.MaxMessageSize {
 			return false
 		}
 	}
