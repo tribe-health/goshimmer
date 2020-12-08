@@ -2,22 +2,22 @@ package valuetangle
 
 import (
 	"fmt"
+
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 
-	"github.com/iotaledger/goshimmer/dapps/faucet"
-	faucetpayload "github.com/iotaledger/goshimmer/dapps/faucet/packages/payload"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/tangle"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/plugins/config"
+	"github.com/iotaledger/goshimmer/plugins/faucet"
 	"github.com/iotaledger/goshimmer/plugins/issuer"
 	"github.com/iotaledger/goshimmer/plugins/messagelayer"
 	"github.com/iotaledger/hive.go/events"
 )
 
-// interface between waspconn and the value tangle
+// ValueTangle is the interface between waspconn and the value tangle
 type ValueTangle interface {
 	GetConfirmedAddressOutputs(addr address.Address) (map[transaction.OutputID][]*balance.Balance, error)
 	GetConfirmedTransaction(txid *transaction.ID) *transaction.Transaction
@@ -42,6 +42,7 @@ type valuetangle struct {
 	txRejectedCallback func(tx *transaction.Transaction)
 }
 
+// NewRealValueTangle returns an implementation for ValueTangle
 func NewRealValueTangle() *valuetangle {
 	v := &valuetangle{}
 
@@ -190,7 +191,7 @@ func (v *valuetangle) IsConfirmed(txid *transaction.ID) (bool, error) {
 }
 
 func (v *valuetangle) RequestFunds(target address.Address) error {
-	faucetPayload, err := faucetpayload.New(target, config.Node().GetInt(faucet.CfgFaucetPoWDifficulty))
+	faucetPayload, err := faucet.NewRequest(target, config.Node().Int(faucet.CfgFaucetPoWDifficulty))
 	if err != nil {
 		return err
 	}

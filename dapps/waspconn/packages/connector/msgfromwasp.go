@@ -3,7 +3,7 @@ package connector
 import (
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/chopper"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
-	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/payload"
+	"github.com/iotaledger/goshimmer/packages/tangle"
 )
 
 // process messages received from the Wasp
@@ -16,7 +16,7 @@ func (wconn *WaspConnector) processMsgDataFromWasp(data []byte) {
 	}
 	switch msgt := msg.(type) {
 	case *waspconn.WaspMsgChunk:
-		finalMsg, err := chopper.IncomingChunk(msgt.Data, payload.MaxMessageSize-waspconn.ChunkMessageHeaderSize)
+		finalMsg, err := chopper.IncomingChunk(msgt.Data, tangle.MaxMessageSize-waspconn.ChunkMessageHeaderSize)
 		if err != nil {
 			wconn.log.Errorf("DecodeMsg: %v", err)
 			return

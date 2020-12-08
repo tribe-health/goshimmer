@@ -1,13 +1,14 @@
 package connector
 
 import (
+	"io"
+
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/chopper"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
-	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/payload"
-	"io"
+	"github.com/iotaledger/goshimmer/packages/tangle"
 )
 
 func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error }) error {
@@ -15,9 +16,9 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 	if err != nil {
 		return err
 	}
-	choppedData, chopped := chopper.ChopData(data, payload.MaxMessageSize-waspconn.ChunkMessageHeaderSize)
+	choppedData, chopped := chopper.ChopData(data, tangle.MaxMessageSize-waspconn.ChunkMessageHeaderSize)
 	if !chopped {
-		if len(data) > payload.MaxMessageSize {
+		if len(data) > tangle.MaxMessageSize {
 			panic("sendMsgToWasp: internal inconsistency 1")
 		}
 		_, err = wconn.bconn.Write(data)
@@ -34,7 +35,7 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 		if err != nil {
 			return err
 		}
-		if len(dataToSend) > payload.MaxMessageSize {
+		if len(dataToSend) > tangle.MaxMessageSize {
 			wconn.log.Panicf("sendMsgToWasp: internal inconsistency 3 size too big: %d", len(dataToSend))
 		}
 		_, err = wconn.bconn.Write(dataToSend)

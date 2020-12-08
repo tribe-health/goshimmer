@@ -158,17 +158,27 @@ export class Visualizer extends React.Component<Props, any> {
                             <span>{selected_approvers_count}/{selected_approvees_count}</span>
                             : '-/-'}
                             <br/>
-                            Trunk/Branch:{' '}
+                            Strong/Weak:{' '}
                             {
-                                selected && selected.trunk_id && selected.branch_id ?
+                                selected && selected.strongParentIDs && selected.weakParentIDs ?
                                     <span>
-                                        <Link to={` / explorer / message /${selected.trunk_id}`}>
-                                            {selected.trunk_id.substr(0, 10)}
-                                        </Link>
+                                        {selected.strongParentIDs.map((parent) => {
+                                            return (
+                                                <Link to={`/explorer/message/${parent}`}>
+                                                    {parent.substr(0, 10) + " "}
+                                                </Link>
+                                            )
+
+                                        })}
                                         /
-                                        <Link to={` / explorer / message /${selected.branch_id}`}>
-                                            {selected.branch_id.substr(0, 10)}
-                                        </Link>
+                                        {selected.weakParentIDs.map((parent) => {
+                                            return (
+                                                <Link to={`/explorer/message/${parent}`}>
+                                                    {parent.substr(0, 10) + " "}
+                                                </Link>
+                                            )
+
+                                        })}
                                     </span>
                                     : "-"}
                         </p>

@@ -61,12 +61,12 @@ func App() *node.Plugin {
 func configPlugin(plugin *node.Plugin) {
 	log = logger.NewLogger(PluginName)
 
-	utxodbEnabled := config.Node().GetBool(WaspConnUtxodbEnabled)
+	utxodbEnabled := config.Node().Bool(WaspConnUtxodbEnabled)
 
 	if utxodbEnabled {
-		confirmTime := time.Duration(config.Node().GetInt(WaspConnUtxodbConfirmDelay)) * time.Second
-		randomize := config.Node().GetBool(WaspConnUtxodbConfirmRandomize)
-		confirmFirstInConflict := config.Node().GetBool(WaspConnUtxodbConfirmFirstInConflict)
+		confirmTime := time.Duration(config.Node().Int(WaspConnUtxodbConfirmDelay)) * time.Second
+		randomize := config.Node().Bool(WaspConnUtxodbConfirmRandomize)
+		confirmFirstInConflict := config.Node().Bool(WaspConnUtxodbConfirmFirstInConflict)
 
 		vtangle = utxodb.NewConfirmEmulator(confirmTime, randomize, confirmFirstInConflict)
 		testing.Config(plugin, log, vtangle)
@@ -90,8 +90,8 @@ func configPlugin(plugin *node.Plugin) {
 }
 
 func runPlugin(_ *node.Plugin) {
-	log.Debugf("starting WaspConn plugin on port %d", config.Node().GetInt(WaspConnPort))
-	port := config.Node().GetInt(WaspConnPort)
+	log.Debugf("starting WaspConn plugin on port %d", config.Node().Int(WaspConnPort))
+	port := config.Node().Int(WaspConnPort)
 	err := daemon.BackgroundWorker("WaspConn worker", func(shutdownSignal <-chan struct{}) {
 		listenOn := fmt.Sprintf(":%d", port)
 		listener, err := net.Listen("tcp", listenOn)

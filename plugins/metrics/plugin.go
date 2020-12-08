@@ -5,16 +5,15 @@ import (
 	"time"
 
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers"
-	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/payload"
 	valuetangle "github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/tangle"
-	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/message"
-	"github.com/iotaledger/goshimmer/packages/binary/messagelayer/tangle"
 	"github.com/iotaledger/goshimmer/packages/metrics"
 	"github.com/iotaledger/goshimmer/packages/shutdown"
+	"github.com/iotaledger/goshimmer/packages/tangle"
 	"github.com/iotaledger/goshimmer/packages/vote"
 	"github.com/iotaledger/goshimmer/plugins/analysis/server"
 	"github.com/iotaledger/goshimmer/plugins/autopeering"
 	"github.com/iotaledger/goshimmer/plugins/config"
+	"github.com/iotaledger/goshimmer/plugins/consensus"
 	"github.com/iotaledger/goshimmer/plugins/gossip"
 	"github.com/iotaledger/goshimmer/plugins/messagelayer"
 	"github.com/iotaledger/hive.go/daemon"
@@ -49,21 +48,21 @@ func configure(_ *node.Plugin) {
 
 func run(_ *node.Plugin) {
 	log.Infof("Starting %s ...", PluginName)
-	if config.Node().GetBool(CfgMetricsLocal) {
+	if config.Node().Bool(CfgMetricsLocal) {
 		// initial measurement, since we have to know how many messages are there in the db
 		measureInitialDBStats()
 		registerLocalMetrics()
 	}
 
 	// Events from analysis server
-	if config.Node().GetBool(CfgMetricsGlobal) {
+	if config.Node().Bool(CfgMetricsGlobal) {
 		server.Events.MetricHeartbeat.Attach(onMetricHeartbeatReceived)
 	}
 
 	// create a background worker that update the metrics every second
 	if err := daemon.BackgroundWorker("Metrics Updater", func(shutdownSignal <-chan struct{}) {
 		defer log.Infof("Stopping Metrics Updater ... done")
-		if config.Node().GetBool(CfgMetricsLocal) {
+		if config.Node().Bool(CfgMetricsLocal) {
 			timeutil.Ticker(func() {
 				measureCPUUsage()
 				measureMemUsage()
@@ -79,7 +78,7 @@ func run(_ *node.Plugin) {
 				gossipCurrentTx.Store(uint64(g.BytesWritten))
 			}, 1*time.Second, shutdownSignal)
 		}
-		if config.Node().GetBool(CfgMetricsGlobal) {
+		if config.Node().Bool(CfgMetricsGlobal) {
 			timeutil.Ticker(calculateNetworkDiameter, 1*time.Minute, shutdownSignal)
 		}
 		log.Infof("Stopping Metrics Updater ...")
@@ -92,10 +91,10 @@ func registerLocalMetrics() {
 	//// Events declared in other packages which we want to listen to here ////
 
 	// increase received MPS counter whenever we attached a message
-	messagelayer.Tangle().Events.MessageAttached.Attach(events.NewClosure(func(cachedMessage *message.CachedMessage, cachedMessageMetadata *tangle.CachedMessageMetadata) {
-		_payloadType := cachedMessage.Unwrap().Payload().Type()
-		cachedMessage.Release()
-		cachedMessageMetadata.Release()
+	messagelayer.Tangle().Events.MessageAttached.Attach(events.NewClosure(func(cachedMsgEvent *tangle.CachedMessageEvent) {
+		_payloadType := cachedMsgEvent.Message.Unwrap().Payload().Type()
+		cachedMsgEvent.Message.Release()
+		cachedMsgEvent.MessageMetadata.Release()
 		increaseReceivedMPSCounter()
 		increasePerPayloadCounter(_payloadType)
 		// MessageAttached is triggered in storeMessageWorker that saves the msg to database
@@ -103,18 +102,18 @@ func registerLocalMetrics() {
 
 	}))
 
-	messagelayer.Tangle().Events.MessageRemoved.Attach(events.NewClosure(func(messageId message.ID) {
+	messagelayer.Tangle().Events.MessageRemoved.Attach(events.NewClosure(func(messageId tangle.MessageID) {
 		// MessageRemoved triggered when the message gets removed from database.
 		messageTotalCountDB.Dec()
 	}))
 
 	// messages can only become solid once, then they stay like that, hence no .Dec() part
-	messagelayer.Tangle().Events.MessageSolid.Attach(events.NewClosure(func(cachedMessage *message.CachedMessage, cachedMessageMetadata *tangle.CachedMessageMetadata) {
-		cachedMessage.Release()
+	messagelayer.Tangle().Events.MessageSolid.Attach(events.NewClosure(func(cachedMsgEvent *tangle.CachedMessageEvent) {
+		cachedMsgEvent.Message.Release()
 		solidTimeMutex.Lock()
 		defer solidTimeMutex.Unlock()
 		// Consume should release cachedMessageMetadata
-		cachedMessageMetadata.Consume(func(object objectstorage.StorableObject) {
+		cachedMsgEvent.MessageMetadata.Consume(func(object objectstorage.StorableObject) {
 			msgMetaData := object.(*tangle.MessageMetadata)
 			if msgMetaData.IsSolid() {
 				messageSolidCountDBInc.Inc()
@@ -124,36 +123,36 @@ func registerLocalMetrics() {
 	}))
 
 	// fired when a message gets added to missing message storage
-	messagelayer.Tangle().Events.MessageMissing.Attach(events.NewClosure(func(messageId message.ID) {
+	messagelayer.Tangle().Events.MessageMissing.Attach(events.NewClosure(func(messageId tangle.MessageID) {
 		missingMessageCountDB.Inc()
 	}))
 
 	// fired when a missing message was received and removed from missing message storage
-	messagelayer.Tangle().Events.MissingMessageReceived.Attach(events.NewClosure(func(cachedMessage *message.CachedMessage, cachedMessageMetadata *tangle.CachedMessageMetadata) {
-		cachedMessage.Release()
-		cachedMessageMetadata.Release()
+	messagelayer.Tangle().Events.MissingMessageReceived.Attach(events.NewClosure(func(cachedMsgEvent *tangle.CachedMessageEvent) {
+		cachedMsgEvent.Message.Release()
+		cachedMsgEvent.MessageMetadata.Release()
 		missingMessageCountDB.Dec()
 	}))
 
 	// Value payload attached
-	valuetransfers.Tangle().Events.PayloadAttached.Attach(events.NewClosure(func(cachedPayload *payload.CachedPayload, cachedPayloadMetadata *valuetangle.CachedPayloadMetadata) {
-		cachedPayload.Release()
-		cachedPayloadMetadata.Release()
+	valuetransfers.Tangle().Events.PayloadAttached.Attach(events.NewClosure(func(cachedPayloadEvent *valuetangle.CachedPayloadEvent) {
+		cachedPayloadEvent.Payload.Release()
+		cachedPayloadEvent.PayloadMetadata.Release()
 		valueTransactionCounter.Inc()
 	}))
 
 	// FPC round executed
-	valuetransfers.Voter().Events().RoundExecuted.Attach(events.NewClosure(func(roundStats *vote.RoundStats) {
+	consensus.Voter().Events().RoundExecuted.Attach(events.NewClosure(func(roundStats *vote.RoundStats) {
 		processRoundStats(roundStats)
 	}))
 
 	// a conflict has been finalized
-	valuetransfers.Voter().Events().Finalized.Attach(events.NewClosure(func(ev *vote.OpinionEvent) {
+	consensus.Voter().Events().Finalized.Attach(events.NewClosure(func(ev *vote.OpinionEvent) {
 		processFinalized(ev.Ctx)
 	}))
 
 	// consensus failure in conflict resolution
-	valuetransfers.Voter().Events().Failed.Attach(events.NewClosure(func(ev *vote.OpinionEvent) {
+	consensus.Voter().Events().Failed.Attach(events.NewClosure(func(ev *vote.OpinionEvent) {
 		processFailed(ev.Ctx)
 	}))
 

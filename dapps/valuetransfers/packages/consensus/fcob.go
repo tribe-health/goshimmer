@@ -3,7 +3,6 @@ package consensus
 import (
 	"time"
 
-	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/branchmanager"
 	"github.com/iotaledger/hive.go/events"
 
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/tangle"
@@ -43,31 +42,33 @@ func NewFCOB(tangle *tangle.Tangle, averageNetworkDelay time.Duration) (fcob *FC
 
 // ProcessVoteResult allows an external voter to hand in the results of the voting process.
 func (fcob *FCOB) ProcessVoteResult(ev *vote.OpinionEvent) {
-	transactionID, err := transaction.IDFromBase58(ev.ID)
-	if err != nil {
-		fcob.Events.Error.Trigger(err)
+	if ev.Ctx.Type == vote.ConflictType {
+		transactionID, err := transaction.IDFromBase58(ev.ID)
+		if err != nil {
+			fcob.Events.Error.Trigger(err)
 
-		return
-	}
+			return
+		}
 
-	if _, err := fcob.tangle.SetTransactionPreferred(transactionID, ev.Opinion == vote.Like); err != nil {
-		fcob.Events.Error.Trigger(err)
-	}
+		if _, err := fcob.tangle.SetTransactionPreferred(transactionID, ev.Opinion == vote.Like); err != nil {
+			fcob.Events.Error.Trigger(err)
+		}
 
-	if _, err := fcob.tangle.SetTransactionFinalized(transactionID); err != nil {
-		fcob.Events.Error.Trigger(err)
+		if _, err := fcob.tangle.SetTransactionFinalized(transactionID); err != nil {
+			fcob.Events.Error.Trigger(err)
+		}
 	}
 }
 
 // onTransactionBooked analyzes the transaction that was booked by the Tangle and initiates the FCOB rules if it is not
 // conflicting. If it is conflicting and a decision is still pending we trigger a voting process.
-func (fcob *FCOB) onTransactionBooked(cachedTransaction *transaction.CachedTransaction, cachedTransactionMetadata *tangle.CachedTransactionMetadata, decisionPending bool) {
-	defer cachedTransaction.Release()
+func (fcob *FCOB) onTransactionBooked(cachedTransactionBookEvent *tangle.CachedTransactionBookEvent) {
+	defer cachedTransactionBookEvent.Transaction.Release()
 
-	cachedTransactionMetadata.Consume(func(transactionMetadata *tangle.TransactionMetadata) {
+	cachedTransactionBookEvent.TransactionMetadata.Consume(func(transactionMetadata *tangle.TransactionMetadata) {
 		if transactionMetadata.Conflicting() {
 			// abort if the previous consumers where finalized already
-			if !decisionPending {
+			if !cachedTransactionBookEvent.Pending {
 				return
 			}
 
@@ -76,7 +77,7 @@ func (fcob *FCOB) onTransactionBooked(cachedTransaction *transaction.CachedTrans
 			return
 		}
 
-		fcob.scheduleSetPreferred(cachedTransactionMetadata.Retain())
+		fcob.scheduleSetPreferred(cachedTransactionBookEvent.TransactionMetadata.Retain())
 	})
 }
 
@@ -139,12 +140,12 @@ func (fcob *FCOB) setFinalized(cachedTransactionMetadata *tangle.CachedTransacti
 
 // onFork triggers a voting process whenever a Transaction gets forked into a new Branch. The initial opinion is derived
 // from the preferred flag that was set using the FCOB rule.
-func (fcob *FCOB) onFork(cachedTransaction *transaction.CachedTransaction, cachedTransactionMetadata *tangle.CachedTransactionMetadata, cachedTargetBranch *branchmanager.CachedBranch, conflictingInputs []transaction.OutputID) {
-	defer cachedTransaction.Release()
-	defer cachedTransactionMetadata.Release()
-	defer cachedTargetBranch.Release()
+func (fcob *FCOB) onFork(forkEvent *tangle.ForkEvent) {
+	defer forkEvent.Transaction.Release()
+	defer forkEvent.TransactionMetadata.Release()
+	defer forkEvent.Branch.Release()
 
-	transactionMetadata := cachedTransactionMetadata.Unwrap()
+	transactionMetadata := forkEvent.TransactionMetadata.Unwrap()
 	if transactionMetadata == nil {
 		return
 	}
