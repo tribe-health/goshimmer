@@ -267,7 +267,8 @@ func (t *Tangle) isMessageSolid(msg *Message, msgMetadata *MessageMetadata) bool
 	solid := true
 
 	msg.ForEachParent(func(parent Parent) {
-		solid = solid && t.isMessageMarkedAsSolid(parent.ID)
+		tmp := t.isMessageMarkedAsSolid(parent.ID)
+		solid = solid && tmp
 	})
 
 	return solid
