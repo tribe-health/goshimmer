@@ -215,10 +215,12 @@ func (t *TCP) run() {
 		// add a new matcher to the list
 		case m := <-t.addAcceptMatcher:
 			m.deadline = time.Now().Add(connectionTimeout)
+			t.log.Info("connectionTimeout for peer", m.peer.ID(), connectionTimeout)
 			matcherList.PushBack(m)
 
 		// on accept received, check all matchers for a fit
 		case a := <-t.acceptReceived:
+			t.log.Info("acceptReceived")
 			matched := false
 			for e := matcherList.Front(); e != nil; e = e.Next() {
 				m := e.Value.(*acceptMatcher)
@@ -238,6 +240,7 @@ func (t *TCP) run() {
 		// on timeout, check for expired matchers
 		case <-timeout.C:
 			now := time.Now()
+			t.log.Info("Timeout triggered")
 
 			// notify and remove any expired matchers
 			for e := matcherList.Front(); e != nil; e = e.Next() {
