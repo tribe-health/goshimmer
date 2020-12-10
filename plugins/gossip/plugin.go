@@ -67,7 +67,7 @@ func configureAutopeering() {
 	peerSel.Events().Dropped.Attach(events.NewClosure(func(ev *selection.DroppedEvent) {
 		go func() {
 			if err := mgr.DropNeighbor(ev.DroppedID); err != nil {
-				log.Debugw("error dropping neighbor", "id", ev.DroppedID, "err", err)
+				log.Infow("error dropping neighbor", "id", ev.DroppedID, "err", err)
 			}
 		}()
 	}))
@@ -77,7 +77,7 @@ func configureAutopeering() {
 		}
 		go func() {
 			if err := mgr.AddInbound(ev.Peer); err != nil {
-				log.Debugw("error adding inbound", "id", ev.Peer.ID(), "err", err)
+				log.Infow("error adding inbound", "id", ev.Peer.ID(), "err", err)
 			}
 		}()
 	}))
@@ -87,7 +87,7 @@ func configureAutopeering() {
 		}
 		go func() {
 			if err := mgr.AddOutbound(ev.Peer); err != nil {
-				log.Debugw("error adding outbound", "id", ev.Peer.ID(), "err", err)
+				log.Infow("error adding outbound", "id", ev.Peer.ID(), "err", err)
 			}
 		}()
 	}))

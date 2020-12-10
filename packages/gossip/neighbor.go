@@ -124,7 +124,7 @@ func (n *Neighbor) readLoop() {
 		err := n.Read()
 		if netutil.IsTemporaryError(err) {
 			// ignore temporary read errors.
-			n.log.Debugw("temporary read error", "err", err)
+			n.log.Infow("temporary read error", "err", err)
 			numReadErrors++
 			if numReadErrors > maxNumReadErrors {
 				n.log.Warnw("Too many read errors", "err", err)

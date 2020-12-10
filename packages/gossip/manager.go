@@ -245,7 +245,7 @@ func (m *Manager) addNeighbor(peer *peer.Peer, connectorFunc func(*peer.Peer) (n
 		dataCopy := make([]byte, len(data))
 		copy(dataCopy, data)
 		if err := m.handlePacket(dataCopy, nbr); err != nil {
-			m.log.Debugw("error handling packet", "err", err)
+			m.log.Infow("error handling packet", "err", err)
 		}
 	}))
 
@@ -306,7 +306,7 @@ func (m *Manager) MessageRequestWorkerPoolStatus() (name string, load int) {
 func (m *Manager) processPacketMessage(data []byte, nbr *Neighbor) {
 	packet := new(pb.Message)
 	if err := proto.Unmarshal(data[1:], packet); err != nil {
-		m.log.Debugw("error processing packet", "err", err)
+		m.log.Infow("error processing packet", "err", err)
 	}
 	m.events.MessageReceived.Trigger(&MessageReceivedEvent{Data: packet.GetData(), Peer: nbr.Peer})
 }
@@ -314,17 +314,17 @@ func (m *Manager) processPacketMessage(data []byte, nbr *Neighbor) {
 func (m *Manager) processMessageRequest(data []byte, nbr *Neighbor) {
 	packet := new(pb.MessageRequest)
 	if err := proto.Unmarshal(data[1:], packet); err != nil {
-		m.log.Debugw("invalid packet", "err", err)
+		m.log.Infow("invalid packet", "err", err)
 	}
 
 	msgID, _, err := tangle.MessageIDFromBytes(packet.GetId())
 	if err != nil {
-		m.log.Debugw("invalid message id:", "err", err)
+		m.log.Infow("invalid message id:", "err", err)
 	}
 
 	msgBytes, err := m.loadMessageFunc(msgID)
 	if err != nil {
-		m.log.Debugw("error loading message", "msg-id", msgID, "err", err)
+		m.log.Infow("error loading message", "msg-id", msgID, "err", err)
 	}
 
 	// send the loaded message directly to the neighbor

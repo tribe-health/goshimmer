@@ -106,6 +106,6 @@ func broadcastMessage(msgID tangle.MessageID) {
 	if err != nil {
 		return
 	}
-	log.Debugw("broadcast tip", "id", msgID)
+	log.Infow("broadcast tip", "id", msgID)
 	Manager().SendMessage(msgBytes)
 }

@@ -90,7 +90,7 @@ func ServeTCP(local *peer.Local, listener *net.TCPListener, log *zap.SugaredLogg
 		closing:          make(chan struct{}),
 	}
 
-	t.log.Debugw("server started",
+	t.log.Infow("server started",
 		"network", listener.Addr().Network(),
 		"address", listener.Addr().String(),
 	)
@@ -143,7 +143,7 @@ func (t *TCP) DialPeer(p *peer.Peer) (net.Conn, error) {
 		return nil, err
 	}
 
-	t.log.Debugw("outgoing connection established",
+	t.log.Infow("outgoing connection established",
 		"id", p.ID(),
 		"addr", conn.RemoteAddr(),
 	)
@@ -164,7 +164,7 @@ func (t *TCP) AcceptPeer(p *peer.Peer) (net.Conn, error) {
 		return nil, fmt.Errorf("accept %s / %s failed: %w", net.JoinHostPort(p.IP().String(), strconv.Itoa(gossipEndpoint.Port())), p.ID(), connected.err)
 	}
 
-	t.log.Debugw("incoming connection established",
+	t.log.Infow("incoming connection established",
 		"id", p.ID(),
 		"addr", connected.c.RemoteAddr(),
 	)
@@ -231,7 +231,7 @@ func (t *TCP) run() {
 			}
 			// close the connection if not matched
 			if !matched {
-				t.log.Debugw("unexpected connection", "id", a.fromID, "addr", a.conn.RemoteAddr())
+				t.log.Infow("unexpected connection", "id", a.fromID, "addr", a.conn.RemoteAddr())
 				t.closeConnection(a.conn)
 			}
 
@@ -243,7 +243,7 @@ func (t *TCP) run() {
 			for e := matcherList.Front(); e != nil; e = e.Next() {
 				m := e.Value.(*acceptMatcher)
 				if now.After(m.deadline) || now.Equal(m.deadline) {
-					t.log.Debugw("accept timeout", "id", m.peer.ID())
+					t.log.Infow("accept timeout", "id", m.peer.ID())
 					m.connected <- connect{nil, ErrTimeout}
 					matcherList.Remove(e)
 				}
@@ -278,7 +278,7 @@ func (t *TCP) listenLoop() {
 	for {
 		conn, err := t.listener.AcceptTCP()
 		if netutil.IsTemporaryError(err) {
-			t.log.Debugw("temporary read error", "err", err)
+			t.log.Infow("temporary read error", "err", err)
 			continue
 		}
 		if err != nil {
