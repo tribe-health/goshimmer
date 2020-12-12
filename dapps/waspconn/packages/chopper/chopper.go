@@ -1,13 +1,14 @@
 // package to help to split messages into smaller pieces and reassemble them
 package chopper
 
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 import (
 	"bytes"
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 )
 
 const (
@@ -17,12 +18,11 @@ const (
 	maxTTL          = 5 * time.Minute
 )
 
-// special wrapper message for chunks of larger than buffer messages
-type msgChunk struct {
-	msgId       uint32
-	chunkSeqNum byte
-	numChunks   byte
-	data        []byte
+type Chopper struct {
+	nextId  uint32
+	mutex   *sync.Mutex
+	chunks  map[uint32]*dataInProgress
+	closeCh chan bool
 }
 
 type dataInProgress struct {
@@ -31,43 +31,53 @@ type dataInProgress struct {
 	numReceived int
 }
 
-var (
-	nextId       uint32
-	chopperMutex sync.Mutex
-	chunks       = make(map[uint32]*dataInProgress)
-)
+func NewChopper() *Chopper {
+	c := Chopper{
+		nextId:  0,
+		mutex:   &sync.Mutex{},
+		chunks:  make(map[uint32]*dataInProgress),
+		closeCh: make(chan bool),
+	}
+	go c.cleanupLoop()
+	return &c
+}
 
-// garbage collector
-func init() {
-	go func() {
-		for {
-			time.Sleep(10 * time.Second)
+func (c *Chopper) Close() {
+	close(c.closeCh)
+}
+
+func (c *Chopper) cleanupLoop() {
+	for {
+		select {
+		case <-c.closeCh:
+			return
+		case <-time.After(10 * time.Second):
 			toDelete := make([]uint32, 0)
 			nowis := time.Now()
-			chopperMutex.Lock()
-			for id, dip := range chunks {
+			c.mutex.Lock()
+			for id, dip := range c.chunks {
 				if nowis.After(dip.ttl) {
 					toDelete = append(toDelete, id)
 				}
 			}
 			for _, id := range toDelete {
-				delete(chunks, id)
+				delete(c.chunks, id)
 			}
-			chopperMutex.Unlock()
+			c.mutex.Unlock()
 		}
-	}()
+	}
 }
 
-func getNextMsgId() uint32 {
-	chopperMutex.Lock()
-	defer chopperMutex.Unlock()
-	nextId++
-	return nextId
+func (c *Chopper) getNextMsgId() uint32 {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.nextId++
+	return c.nextId
 }
 
 // ChopData chops data into pieces and adds header to each piece for IncomingChunk function to reassemble it
 // the size of each pieces is maxChunkSize - 3, for the header of the above protocol
-func ChopData(data []byte, maxChunkSize uint16) ([][]byte, bool) {
+func (c *Chopper) ChopData(data []byte, maxChunkSize uint16) ([][]byte, bool) {
 	maxSizeWithoutHeader := maxChunkSize - chunkHeaderSize
 	if len(data) <= int(maxChunkSize) { // [KP] Was compared with tangle.MaxMessageSize
 		return nil, false // no need to split
@@ -82,7 +92,7 @@ func ChopData(data []byte, maxChunkSize uint16) ([][]byte, bool) {
 	if numChunks < 2 {
 		panic("ChopData: internal inconsistency 1")
 	}
-	id := getNextMsgId()
+	id := c.getNextMsgId()
 	ret := make([][]byte, 0, numChunks)
 	var d []byte
 	for i := byte(0); i < numChunks; i++ {
@@ -107,7 +117,7 @@ func ChopData(data []byte, maxChunkSize uint16) ([][]byte, bool) {
 	return ret, true
 }
 
-func IncomingChunk(data []byte, maxChunkSize uint16) ([]byte, error) {
+func (c *Chopper) IncomingChunk(data []byte, maxChunkSize uint16) ([]byte, error) {
 	maxSizeWithoutHeader := maxChunkSize - chunkHeaderSize
 	msg := msgChunk{}
 	if err := msg.decode(data, maxSizeWithoutHeader); err != nil {
@@ -121,16 +131,16 @@ func IncomingChunk(data []byte, maxChunkSize uint16) ([]byte, error) {
 		return nil, fmt.Errorf("wrong incoming data chunk seq number")
 	}
 
-	chopperMutex.Lock()
-	defer chopperMutex.Unlock()
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 
-	dip, ok := chunks[msg.msgId]
+	dip, ok := c.chunks[msg.msgId]
 	if !ok {
 		dip = &dataInProgress{
 			buffer: make([][]byte, int(msg.numChunks)),
 			ttl:    time.Now().Add(maxTTL),
 		}
-		chunks[msg.msgId] = dip
+		c.chunks[msg.msgId] = dip
 	} else {
 		if dip.buffer[msg.chunkSeqNum] != nil {
 			return nil, fmt.Errorf("repeating seq number")
@@ -147,41 +157,6 @@ func IncomingChunk(data []byte, maxChunkSize uint16) ([]byte, error) {
 	for _, d := range dip.buffer {
 		buf.Write(d)
 	}
-	delete(chunks, msg.msgId)
+	delete(c.chunks, msg.msgId)
 	return buf.Bytes(), nil
-}
-
-func (c *msgChunk) encode() []byte {
-	var buf bytes.Buffer
-
-	_ = waspconn.WriteUint32(&buf, c.msgId)
-	_ = waspconn.WriteByte(&buf, c.numChunks)
-	_ = waspconn.WriteByte(&buf, c.chunkSeqNum)
-	_ = waspconn.WriteBytes16(&buf, c.data)
-	return buf.Bytes()
-}
-
-func (c *msgChunk) decode(data []byte, maxChunkSizeWithoutHeader uint16) error {
-	rdr := bytes.NewReader(data)
-	if err := waspconn.ReadUint32(rdr, &c.msgId); err != nil {
-		return err
-	}
-	if err := waspconn.ReadByte(rdr, &c.numChunks); err != nil {
-		return err
-	}
-	if err := waspconn.ReadByte(rdr, &c.chunkSeqNum); err != nil {
-		return err
-	}
-	if data, err := waspconn.ReadBytes16(rdr); err != nil {
-		return err
-	} else {
-		c.data = data
-	}
-	if c.chunkSeqNum >= c.numChunks {
-		return fmt.Errorf("wrong data chunk format")
-	}
-	if len(c.data) != int(maxChunkSizeWithoutHeader) && c.chunkSeqNum != c.numChunks-1 {
-		return fmt.Errorf("wrong data chunk length")
-	}
-	return nil
 }

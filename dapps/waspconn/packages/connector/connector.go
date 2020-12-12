@@ -8,6 +8,7 @@ import (
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
+	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/chopper"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/valuetangle"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 	"github.com/iotaledger/goshimmer/packages/shutdown"
@@ -28,6 +29,7 @@ type WaspConnector struct {
 	receiveBookedTransactionClosure    *events.Closure
 	receiveRejectedTransactionClosure  *events.Closure
 	receiveWaspMessageClosure          *events.Closure
+	messageChopper                     *chopper.Chopper
 	log                                *logger.Logger
 	vtangle                            valuetangle.ValueTangle
 }
@@ -38,10 +40,11 @@ type wrapRejectedTx *transaction.Transaction
 
 func Run(conn net.Conn, log *logger.Logger, vtangle valuetangle.ValueTangle) {
 	wconn := &WaspConnector{
-		bconn:        buffconn.NewBufferedConnection(conn, tangle.MaxMessageSize),
-		exitConnChan: make(chan struct{}),
-		log:          log,
-		vtangle:      vtangle,
+		bconn:          buffconn.NewBufferedConnection(conn, tangle.MaxMessageSize),
+		exitConnChan:   make(chan struct{}),
+		messageChopper: chopper.NewChopper(),
+		log:            log,
+		vtangle:        vtangle,
 	}
 	err := daemon.BackgroundWorker(wconn.Id(), func(shutdownSignal <-chan struct{}) {
 		select {

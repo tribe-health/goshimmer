@@ -1,12 +1,14 @@
 package connector
 
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 import (
 	"io"
 
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/address"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/balance"
 	"github.com/iotaledger/goshimmer/dapps/valuetransfers/packages/transaction"
-	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/chopper"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 	"github.com/iotaledger/goshimmer/packages/tangle"
 )
@@ -16,7 +18,7 @@ func (wconn *WaspConnector) sendMsgToWasp(msg interface{ Write(io.Writer) error 
 	if err != nil {
 		return err
 	}
-	choppedData, chopped := chopper.ChopData(data, tangle.MaxMessageSize-waspconn.ChunkMessageHeaderSize)
+	choppedData, chopped := wconn.messageChopper.ChopData(data, tangle.MaxMessageSize-waspconn.ChunkMessageHeaderSize)
 	if !chopped {
 		if len(data) > tangle.MaxMessageSize {
 			panic("sendMsgToWasp: internal inconsistency 1")

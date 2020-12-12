@@ -1,7 +1,9 @@
 package connector
 
+// Copyright 2020 IOTA Stiftung
+// SPDX-License-Identifier: Apache-2.0
+
 import (
-	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/chopper"
 	"github.com/iotaledger/goshimmer/dapps/waspconn/packages/waspconn"
 	"github.com/iotaledger/goshimmer/packages/tangle"
 )
@@ -16,7 +18,7 @@ func (wconn *WaspConnector) processMsgDataFromWasp(data []byte) {
 	}
 	switch msgt := msg.(type) {
 	case *waspconn.WaspMsgChunk:
-		finalMsg, err := chopper.IncomingChunk(msgt.Data, tangle.MaxMessageSize-waspconn.ChunkMessageHeaderSize)
+		finalMsg, err := wconn.messageChopper.IncomingChunk(msgt.Data, tangle.MaxMessageSize-waspconn.ChunkMessageHeaderSize)
 		if err != nil {
 			wconn.log.Errorf("DecodeMsg: %v", err)
 			return
