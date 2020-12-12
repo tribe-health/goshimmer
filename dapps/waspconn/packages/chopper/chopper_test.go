@@ -34,7 +34,7 @@ func TestBasic(t *testing.T) {
 	assert.False(t, ok)
 
 	_, ok = ChopData(dataExact, maxChunkSize)
-	assert.False(t, ok)
+	assert.True(t, ok) // Should be chopped, because len(data) = maxChunkSize + 3
 
 	choppedExact2, ok := ChopData(dataExact2, maxChunkSize)
 	assert.True(t, ok)
