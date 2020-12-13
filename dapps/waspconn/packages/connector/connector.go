@@ -146,9 +146,9 @@ func (wconn *WaspConnector) detach() {
 	EventValueTransactionRejected.Detach(wconn.receiveRejectedTransactionClosure)
 	wconn.bconn.Events.ReceiveMessage.Detach(wconn.receiveWaspMessageClosure)
 
+	wconn.messageChopper.Close()
 	close(wconn.inTxChan)
 	_ = wconn.bconn.Close()
-
 	wconn.log.Debugf("detached waspconn")
 }
 

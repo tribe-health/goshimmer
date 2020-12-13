@@ -75,28 +75,41 @@ func (c *Chopper) getNextMsgId() uint32 {
 	return c.nextId
 }
 
-// ChopData chops data into pieces and adds header to each piece for IncomingChunk function to reassemble it
-// the size of each pieces is maxChunkSize - 3, for the header of the above protocol
-func (c *Chopper) ChopData(data []byte, maxChunkSize uint16) ([][]byte, bool) {
+func NumChunks(dataLen, maxMsgSize, includingChoppingOverhead int) (byte, int, error) {
+	if dataLen <= maxMsgSize {
+		return 0, 0, nil // no need to split
+	}
+	maxChunkSize := maxMsgSize - includingChoppingOverhead
 	maxSizeWithoutHeader := maxChunkSize - chunkHeaderSize
-	if len(data) <= int(maxChunkSize) { // [KP] Was compared with tangle.MaxMessageSize
-		return nil, false // no need to split
+	if dataLen > maxChunkSize*255 {
+		return 0, 0, fmt.Errorf("chopper.NumChunks: too long data to chop")
 	}
-	if len(data) > int(maxChunkSize)*255 {
-		panic("ChopData: too long data to chop")
-	}
-	numChunks := byte(len(data) / int(maxSizeWithoutHeader))
-	if len(data)%int(maxSizeWithoutHeader) > 0 {
+	numChunks := dataLen / maxSizeWithoutHeader
+	if dataLen%maxSizeWithoutHeader > 0 {
 		numChunks++
 	}
 	if numChunks < 2 {
 		panic("ChopData: internal inconsistency 1")
 	}
+	return byte(numChunks), maxChunkSize, nil
+}
+
+// ChopData chops data into pieces (not more than 255) and adds chopper header to each piece
+// for IncomingChunk function to reassemble it
+func (c *Chopper) ChopData(data []byte, maxMsgSize int, includingChoppingOverhead int) ([][]byte, bool, error) {
+	numChunks, maxChunkSize, err := NumChunks(len(data), maxMsgSize, includingChoppingOverhead)
+	if err != nil {
+		return nil, false, err
+	}
+	if numChunks == 0 {
+		return nil, false, nil
+	}
+	maxSizeWithoutHeader := maxChunkSize - chunkHeaderSize
 	id := c.getNextMsgId()
 	ret := make([][]byte, 0, numChunks)
 	var d []byte
 	for i := byte(0); i < numChunks; i++ {
-		if len(data) > int(maxSizeWithoutHeader) {
+		if len(data) > maxSizeWithoutHeader {
 			d = data[:maxSizeWithoutHeader]
 			data = data[maxSizeWithoutHeader:]
 		} else {
@@ -109,26 +122,30 @@ func (c *Chopper) ChopData(data []byte, maxChunkSize uint16) ([][]byte, bool) {
 			data:        d,
 		}
 		dtmp := chunk.encode()
-		if len(dtmp) > int(maxChunkSize) {
+		if len(dtmp) > maxMsgSize {
 			panic("ChopData: internal inconsistency 2")
 		}
 		ret = append(ret, dtmp)
 	}
-	return ret, true
+	return ret, true, nil
 }
 
-func (c *Chopper) IncomingChunk(data []byte, maxChunkSize uint16) ([]byte, error) {
+// IncomingChunk collects all incoming chunks.
+// Returned != nil value of the reassembled data
+// maxChunkSize parameter must be the same on both sides
+func (c *Chopper) IncomingChunk(data []byte, maxMsgSize int, includingChoppingOverhead int) ([]byte, error) {
+	maxChunkSize := maxMsgSize - includingChoppingOverhead
 	maxSizeWithoutHeader := maxChunkSize - chunkHeaderSize
 	msg := msgChunk{}
 	if err := msg.decode(data, maxSizeWithoutHeader); err != nil {
 		return nil, err
 	}
 	switch {
-	case len(msg.data) > int(maxChunkSize):
-		return nil, fmt.Errorf("too long data chunk")
+	case len(msg.data) > maxChunkSize:
+		return nil, fmt.Errorf("IncomingChunk: too long data chunk")
 
 	case msg.chunkSeqNum >= msg.numChunks:
-		return nil, fmt.Errorf("wrong incoming data chunk seq number")
+		return nil, fmt.Errorf("IncomingChunk: wrong incoming data chunk seq number")
 	}
 
 	c.mutex.Lock()
@@ -143,7 +160,7 @@ func (c *Chopper) IncomingChunk(data []byte, maxChunkSize uint16) ([]byte, error
 		c.chunks[msg.msgId] = dip
 	} else {
 		if dip.buffer[msg.chunkSeqNum] != nil {
-			return nil, fmt.Errorf("repeating seq number")
+			return nil, fmt.Errorf("IncomingChunk: repeating seq number")
 		}
 	}
 	dip.buffer[msg.chunkSeqNum] = msg.data

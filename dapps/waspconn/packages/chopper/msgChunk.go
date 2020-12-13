@@ -28,7 +28,7 @@ func (c *msgChunk) encode() []byte {
 	return buf.Bytes()
 }
 
-func (c *msgChunk) decode(data []byte, maxChunkSizeWithoutHeader uint16) error {
+func (c *msgChunk) decode(data []byte, maxChunkSizeWithoutHeader int) error {
 	rdr := bytes.NewReader(data)
 	if err := waspconn.ReadUint32(rdr, &c.msgId); err != nil {
 		return err
@@ -47,7 +47,7 @@ func (c *msgChunk) decode(data []byte, maxChunkSizeWithoutHeader uint16) error {
 	if c.chunkSeqNum >= c.numChunks {
 		return fmt.Errorf("wrong data chunk format")
 	}
-	if len(c.data) != int(maxChunkSizeWithoutHeader) && c.chunkSeqNum != c.numChunks-1 {
+	if len(c.data) != maxChunkSizeWithoutHeader && c.chunkSeqNum != c.numChunks-1 {
 		return fmt.Errorf("wrong data chunk length")
 	}
 	return nil

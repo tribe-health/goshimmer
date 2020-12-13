@@ -18,7 +18,7 @@ func (wconn *WaspConnector) processMsgDataFromWasp(data []byte) {
 	}
 	switch msgt := msg.(type) {
 	case *waspconn.WaspMsgChunk:
-		finalMsg, err := wconn.messageChopper.IncomingChunk(msgt.Data, tangle.MaxMessageSize-waspconn.ChunkMessageHeaderSize)
+		finalMsg, err := wconn.messageChopper.IncomingChunk(msgt.Data, tangle.MaxMessageSize, waspconn.ChunkMessageHeaderSize)
 		if err != nil {
 			wconn.log.Errorf("DecodeMsg: %v", err)
 			return
