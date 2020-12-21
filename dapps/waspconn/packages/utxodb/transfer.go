@@ -57,6 +57,7 @@ func (u *UtxoDB) requestFundsTx(target address.Address) (*transaction.Transactio
 	return tx, nil
 }
 
+// RequestFunds implements faucet: it sends 1337 IOTA tokens from genesis to the given address.
 func (u *UtxoDB) RequestFunds(target address.Address) (*transaction.Transaction, error) {
 	tx, err := u.requestFundsTx(target)
 	if err != nil {

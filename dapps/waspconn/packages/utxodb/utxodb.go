@@ -9,6 +9,7 @@ import (
 	"sync"
 )
 
+// UtxoDB is the structure which contains all UTXODB transactions and ledger
 type UtxoDB struct {
 	transactions  map[transaction.ID]*transaction.Transaction
 	utxo          map[transaction.OutputID]bool
@@ -17,6 +18,7 @@ type UtxoDB struct {
 	genesisTxId   transaction.ID
 }
 
+// New creates new UTXODB instance
 func New() *UtxoDB {
 	u := &UtxoDB{
 		transactions:  make(map[transaction.ID]*transaction.Transaction),
@@ -28,6 +30,7 @@ func New() *UtxoDB {
 	return u
 }
 
+// ValidateTransaction check is the transaction can be added to the ledger
 func (u *UtxoDB) ValidateTransaction(tx *transaction.Transaction) error {
 	if err := u.CheckInputsOutputs(tx); err != nil {
 		return fmt.Errorf("%v: txid %s", err, tx.ID().String())
@@ -38,6 +41,7 @@ func (u *UtxoDB) ValidateTransaction(tx *transaction.Transaction) error {
 	return nil
 }
 
+// AreConflicting checks if two transactions double-spend
 func AreConflicting(tx1, tx2 *transaction.Transaction) bool {
 	if tx1.ID() == tx2.ID() {
 		return true
@@ -56,6 +60,7 @@ func AreConflicting(tx1, tx2 *transaction.Transaction) bool {
 	return ret
 }
 
+// IsConfirmed checks if the transaction is in the UTXODB (in the ledger)
 func (u *UtxoDB) IsConfirmed(txid *transaction.ID) bool {
 	u.mutex.Lock()
 	defer u.mutex.Unlock()
@@ -63,6 +68,8 @@ func (u *UtxoDB) IsConfirmed(txid *transaction.ID) bool {
 	return ok
 }
 
+// AddTransaction adds transaction to UTXODB or return an error.
+// The function ensures consistency of the UTXODB ledger
 func (u *UtxoDB) AddTransaction(tx *transaction.Transaction) error {
 	//fmt.Printf("[utxodb] AddTransaction::\n%s\n", tx.String())
 	if err := u.ValidateTransaction(tx); err != nil {
@@ -122,6 +129,7 @@ func (u *UtxoDB) AddTransaction(tx *transaction.Transaction) error {
 	return nil
 }
 
+// GetTransaction retrieves value transation by its hash (ID)
 func (u *UtxoDB) GetTransaction(id transaction.ID) (*transaction.Transaction, bool) {
 	u.mutex.RLock()
 	defer u.mutex.RUnlock()
@@ -142,12 +150,14 @@ func (u *UtxoDB) mustGetTransaction(id transaction.ID) *transaction.Transaction 
 	return tx
 }
 
+// MustGetTransaction same as GetTransaction only panics if transaction is not in UTXODB
 func (u *UtxoDB) MustGetTransaction(id transaction.ID) *transaction.Transaction {
 	u.mutex.RLock()
 	defer u.mutex.RUnlock()
 	return u.mustGetTransaction(id)
 }
 
+// GetAddressOutputs returns outputs contained in the address and its colored balances as a map
 func (u *UtxoDB) GetAddressOutputs(addr address.Address) map[transaction.OutputID][]*balance.Balance {
 	u.mutex.RLock()
 	defer u.mutex.RUnlock()
@@ -222,6 +232,7 @@ type AddressStats struct {
 	NumOutputs int
 }
 
+// GetLedgerStats returns totals of UTXODB ledger by address
 func (u *UtxoDB) GetLedgerStats() map[address.Address]AddressStats {
 	u.mutex.RLock()
 	defer u.mutex.RUnlock()

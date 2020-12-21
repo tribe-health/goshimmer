@@ -17,6 +17,7 @@ var (
 	genesisSigScheme = NewSigScheme("EFonzaUz5ngYeDxbRKu8qV5aoSogUQ5qVSTSjn7hJ8FQ", 0)
 )
 
+// NewSigScheme creates new random Ed25519 signature scheme
 func NewSigScheme(seedStr string, index int) signaturescheme.SignatureScheme {
 	seedBin, err := base58.Decode(seedStr)
 	if err != nil {
@@ -45,10 +46,12 @@ func (u *UtxoDB) genesisInit() {
 	u.utxoByAddress[genesisAddr] = []transaction.ID{u.genesisTxId}
 }
 
+// GetGenesisSigScheme return signature scheme used by creator of genesis
 func (u *UtxoDB) GetGenesisSigScheme() signaturescheme.SignatureScheme {
 	return genesisSigScheme
 }
 
+// GetGenesisAddress return address of genesis
 func (u *UtxoDB) GetGenesisAddress() address.Address {
 	return genesisSigScheme.Address()
 }
