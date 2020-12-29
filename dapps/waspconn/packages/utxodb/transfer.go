@@ -30,7 +30,7 @@ func (u *UtxoDB) requestFundsTx(target address.Address) (*transaction.Transactio
 		}
 	}
 	if sum < RequestFundsAmount {
-		return nil, fmt.Errorf("not enough input balance")
+		return nil, fmt.Errorf("utxodb: not enough input balance")
 	}
 	inputs := transaction.NewInputs(oids...)
 
@@ -51,7 +51,7 @@ func (u *UtxoDB) requestFundsTx(target address.Address) (*transaction.Transactio
 	tx.Sign(u.GetGenesisSigScheme())
 
 	if !tx.SignaturesValid() {
-		panic("something wrong with signatures")
+		panic("utxodb: something wrong with signatures")
 	}
 
 	return tx, nil

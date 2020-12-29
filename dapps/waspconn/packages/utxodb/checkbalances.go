@@ -64,16 +64,16 @@ func collectOutputBalances(tx *transaction.Transaction) (map[balance.Color]int64
 func (u *UtxoDB) CheckInputsOutputs(tx *transaction.Transaction) error {
 	inbals, insum, err := u.collectInputBalances(tx)
 	if err != nil {
-		return fmt.Errorf("CheckInputsOutputs: wrong inputs: %v", err)
+		return fmt.Errorf("utxodb.CheckInputsOutputs: wrong inputs: %v", err)
 	}
 	outbals, outsum := collectOutputBalances(tx)
 	if insum != outsum {
-		return errors.New("unequal totals")
+		return errors.New("utxodb.CheckInputsOutputs unequal totals")
 	}
 
 	for col, inb := range inbals {
 		if !(col != balance.ColorNew) {
-			return errors.New("assertion failed: col != balance.ColorNew")
+			return errors.New("utxodb.CheckInputsOutputs: assertion failed: col != balance.ColorNew")
 		}
 		if col == balance.ColorIOTA {
 			continue
@@ -84,7 +84,7 @@ func (u *UtxoDB) CheckInputsOutputs(tx *transaction.Transaction) error {
 		}
 		if outb > inb {
 			// colored supply can't be inflated
-			return errors.New("colored supply can't be inflated")
+			return errors.New("utxodb.CheckInputsOutputs: colored supply can't be inflated")
 		}
 	}
 	return nil

@@ -33,10 +33,10 @@ func New() *UtxoDB {
 // ValidateTransaction check is the transaction can be added to the ledger
 func (u *UtxoDB) ValidateTransaction(tx *transaction.Transaction) error {
 	if err := u.CheckInputsOutputs(tx); err != nil {
-		return fmt.Errorf("%v: txid %s", err, tx.ID().String())
+		return fmt.Errorf("utxodb: %v: txid %s", err, tx.ID().String())
 	}
 	if !tx.SignaturesValid() {
-		return fmt.Errorf("invalid signature txid = %s", tx.ID().String())
+		return fmt.Errorf("utxodb: invalid signature txid = %s", tx.ID().String())
 	}
 	return nil
 }
@@ -80,7 +80,7 @@ func (u *UtxoDB) AddTransaction(tx *transaction.Transaction) error {
 	defer u.mutex.Unlock()
 
 	if _, ok := u.transactions[tx.ID()]; ok {
-		return fmt.Errorf("duplicate transaction txid = %s", tx.ID().String())
+		return fmt.Errorf("utxodb: duplicate transaction txid = %s", tx.ID().String())
 	}
 
 	var err error
@@ -88,13 +88,13 @@ func (u *UtxoDB) AddTransaction(tx *transaction.Transaction) error {
 	// check if outputs exist
 	tx.Inputs().ForEach(func(outputId transaction.OutputID) bool {
 		if _, ok := u.utxo[outputId]; !ok {
-			err = fmt.Errorf("output doesn't exist txid = %s", tx.ID().String())
+			err = fmt.Errorf("utxodb: output doesn't exist txid = %s", tx.ID().String())
 			return true
 		}
 		return false
 	})
 	if err != nil {
-		return fmt.Errorf("conflict/double spend: '%v' txid %s", err, tx.ID().String())
+		return fmt.Errorf("utxodb: conflict/double spend: '%v' txid %s", err, tx.ID().String())
 	}
 
 	// add outputs to utxo ledger
@@ -145,7 +145,7 @@ func (u *UtxoDB) getTransaction(id transaction.ID) (*transaction.Transaction, bo
 func (u *UtxoDB) mustGetTransaction(id transaction.ID) *transaction.Transaction {
 	tx, ok := u.transactions[id]
 	if !ok {
-		panic(fmt.Sprintf("tx id doesn't exist: %s", id.String()))
+		panic(fmt.Sprintf("utxodb: tx id doesn't exist: %s", id.String()))
 	}
 	return tx
 }
@@ -199,11 +199,11 @@ func (u *UtxoDB) getAddressOutputs(addr address.Address) map[transaction.OutputI
 func (u *UtxoDB) getOutputTotal(outid transaction.OutputID) (int64, error) {
 	tx, ok := u.getTransaction(outid.TransactionID())
 	if !ok {
-		return 0, errors.New("no such transaction")
+		return 0, errors.New("utxodb: no such transaction")
 	}
 	btmp, ok := tx.Outputs().Get(outid.Address())
 	if !ok {
-		return 0, errors.New("no such output")
+		return 0, errors.New("utxodb: no such output")
 	}
 	bals := btmp.([]*balance.Balance)
 	sum := int64(0)
@@ -218,12 +218,12 @@ func (u *UtxoDB) checkLedgerBalance() {
 	for outp := range u.utxo {
 		b, err := u.getOutputTotal(outp)
 		if err != nil {
-			panic("Wrong ledger balance: " + err.Error())
+			panic("utxodb: wrong ledger balance: " + err.Error())
 		}
 		total += b
 	}
 	if total != supply {
-		panic("wrong ledger balance")
+		panic("utxodb: wrong ledger balance")
 	}
 }
 
