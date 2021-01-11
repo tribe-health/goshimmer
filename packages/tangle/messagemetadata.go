@@ -19,9 +19,11 @@ type MessageMetadata struct {
 	receivedTime       time.Time
 	solid              bool
 	solidificationTime time.Time
+	eligible           bool
 
 	solidMutex              sync.RWMutex
 	solidificationTimeMutex sync.RWMutex
+	eligibleMutex           sync.RWMutex
 }
 
 // NewMessageMetadata creates a new MessageMetadata from the specified messageID.
@@ -59,6 +61,10 @@ func MessageMetadataFromMarshalUtil(marshalUtil *marshalutil.MarshalUtil) (resul
 	}
 	if result.solid, err = marshalUtil.ReadBool(); err != nil {
 		err = fmt.Errorf("failed to parse 'solid' of message metadata: %w", err)
+		return
+	}
+	if result.eligible, err = marshalUtil.ReadBool(); err != nil {
+		err = fmt.Errorf("failed to parse 'eligible' of message metadata: %w", err)
 		return
 	}
 
@@ -126,6 +132,38 @@ func (m *MessageMetadata) SolidificationTime() time.Time {
 	return m.solidificationTime
 }
 
+// IsEligible returns true if the message represented by this metadata is eligible. False otherwise.
+func (m *MessageMetadata) IsEligible() (result bool) {
+	m.eligibleMutex.RLock()
+	result = m.eligible
+	m.eligibleMutex.RUnlock()
+
+	return
+}
+
+// SetEligible sets the message associated with this metadata as eligible.
+// It returns true if the eligible status is modified. False otherwise.
+func (m *MessageMetadata) SetEligible(eligible bool) (modified bool) {
+	m.eligibleMutex.RLock()
+	if m.eligible != eligible {
+		m.eligibleMutex.RUnlock()
+
+		m.eligibleMutex.Lock()
+		if m.eligible != eligible {
+			m.eligible = eligible
+			m.SetModified()
+
+			modified = true
+		}
+		m.eligibleMutex.Unlock()
+
+	} else {
+		m.eligibleMutex.RUnlock()
+	}
+
+	return
+}
+
 // Bytes returns a marshaled version of the whole MessageMetadata object.
 func (m *MessageMetadata) Bytes() []byte {
 	return byteutils.ConcatBytes(m.ObjectStorageKey(), m.ObjectStorageValue())
@@ -144,6 +182,7 @@ func (m *MessageMetadata) ObjectStorageValue() []byte {
 		WriteTime(m.ReceivedTime()).
 		WriteTime(m.SolidificationTime()).
 		WriteBool(m.IsSolid()).
+		WriteBool(m.IsEligible()).
 		Bytes()
 }
 
