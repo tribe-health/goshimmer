@@ -3,7 +3,6 @@ package tangle
 import (
 	"container/list"
 
-	"github.com/iotaledger/hive.go/async"
 	"github.com/iotaledger/hive.go/kvstore"
 	"github.com/iotaledger/hive.go/types"
 )
@@ -13,8 +12,6 @@ type Tangle struct {
 	*MessageStore
 
 	Events *Events
-
-	solidifierWorkerPool async.WorkerPool
 }
 
 // New creates a new Tangle.
@@ -24,13 +21,11 @@ func New(store kvstore.KVStore) (result *Tangle) {
 		Events:       newEvents(),
 	}
 
-	result.solidifierWorkerPool.Tune(1024)
 	return
 }
 
 // Shutdown marks the tangle as stopped, so it will not accept any new messages (waits for all backgroundTasks to finish).
 func (t *Tangle) Shutdown() *Tangle {
-	t.solidifierWorkerPool.ShutdownGracefully()
 	t.MessageStore.Shutdown()
 
 	return t
@@ -39,9 +34,7 @@ func (t *Tangle) Shutdown() *Tangle {
 // worker that stores the message and calls the corresponding storage events.
 func (t *Tangle) SolidifyMessage(cachedMessage *CachedMessage, cachedMsgMetadata *CachedMessageMetadata) {
 	// check message solidity
-	t.solidifierWorkerPool.Submit(func() {
-		t.checkMessageSolidityAndPropagate(cachedMessage, cachedMsgMetadata)
-	})
+	t.checkMessageSolidityAndPropagate(cachedMessage, cachedMsgMetadata)
 }
 
 // checks whether the given message is solid and marks it as missing if it isn't known.
@@ -166,9 +159,4 @@ func (t *Tangle) deleteFutureCone(messageID MessageID) {
 			}
 		})
 	}
-}
-
-// SolidifierWorkerPoolStatus returns the name and the load of the workerpool.
-func (t *Tangle) SolidifierWorkerPoolStatus() (name string, load int) {
-	return "Solidifier", t.solidifierWorkerPool.RunningWorkers()
 }
