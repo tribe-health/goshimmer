@@ -13,6 +13,8 @@ type Events struct {
 	// Fired when a message was missing for too long and is
 	// therefore considered to be unsolidifiable.
 	MessageUnsolidifiable *events.Event
+	// Fired when a message has been eligible.
+	MessageEligible *events.Event
 }
 
 // CachedMessageEvent represents the parameters of cachedMessageEvent
@@ -25,6 +27,7 @@ func newEvents() *Events {
 	return &Events{
 		MessageSolid:          events.NewEvent(cachedMessageEvent),
 		MessageUnsolidifiable: events.NewEvent(messageIDEvent),
+		MessageEligible:       events.NewEvent(cachedMessageEvent),
 	}
 }
 
