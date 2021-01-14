@@ -86,8 +86,8 @@ func TestFPCFinalizedEvent(t *testing.T) {
 			{opinion.Like}, {opinion.Like}, {opinion.Like}, {opinion.Like},
 		},
 	}
-	opinionGiverFunc := func() (givers []opinion.OpinionGiver, err error) {
-		return []opinion.OpinionGiver{opinionGiverMock}, nil
+	opinionGiverFunc := func() (givers []opinion.Giver, err error) {
+		return []opinion.Giver{opinionGiverMock}, nil
 	}
 
 	id := "a"
@@ -113,8 +113,8 @@ func TestFPCFinalizedEvent(t *testing.T) {
 }
 
 func TestFPCFailedEvent(t *testing.T) {
-	opinionGiverFunc := func() (givers []opinion.OpinionGiver, err error) {
-		return []opinion.OpinionGiver{&opiniongivermock{
+	opinionGiverFunc := func() (givers []opinion.Giver, err error) {
+		return []opinion.Giver{&opiniongivermock{
 			// doesn't matter what we set here
 			roundsReplies: []opinion.Opinions{{opinion.Dislike}},
 		}}, nil
@@ -159,8 +159,8 @@ func TestFPCVotingMultipleOpinionGivers(t *testing.T) {
 	for _, test := range tests {
 		// note that even though we're defining QuerySampleSize times opinion givers,
 		// it doesn't mean that FPC will query all of them.
-		opinionGiverFunc := func() (givers []opinion.OpinionGiver, err error) {
-			opinionGivers := make([]opinion.OpinionGiver, fpc.DefaultParameters().QuerySampleSize)
+		opinionGiverFunc := func() (givers []opinion.Giver, err error) {
+			opinionGivers := make([]opinion.Giver, fpc.DefaultParameters().QuerySampleSize)
 			for i := 0; i < len(opinionGivers); i++ {
 				opinionGivers[i] = &opiniongivermock{roundsReplies: []opinion.Opinions{{test.initOpinion}}}
 			}

@@ -6,8 +6,8 @@ import (
 	"github.com/iotaledger/hive.go/identity"
 )
 
-// OpinionGiver gives opinions about the given IDs.
-type OpinionGiver interface {
+// Giver gives opinions about the given IDs.
+type Giver interface {
 	// Query queries the OpinionGiver for its opinions on the given IDs.
 	// The passed in context can be used to signal cancellation of the query.
 	Query(ctx context.Context, conflictIDs []string, timestampIDs []string) (Opinions, error)
@@ -27,8 +27,8 @@ type QueriedOpinions struct {
 	TimesCounted int `json:"times_counted"`
 }
 
-// OpinionGiverFunc is a function which gives a slice of OpinionGivers or an error.
-type OpinionGiverFunc func() ([]OpinionGiver, error)
+// GiverFunc is a function which gives a slice of OpinionGivers or an error.
+type GiverFunc func() ([]Giver, error)
 
 // Opinions is a slice of Opinion.
 type Opinions []Opinion

@@ -23,7 +23,7 @@ var (
 )
 
 // New creates a new FPC instance.
-func New(opinionGiverFunc opinion.OpinionGiverFunc, paras ...*Parameters) *FPC {
+func New(opinionGiverFunc opinion.GiverFunc, paras ...*Parameters) *FPC {
 	f := &FPC{
 		opinionGiverFunc: opinionGiverFunc,
 		paras:            DefaultParameters(),
@@ -48,7 +48,7 @@ func New(opinionGiverFunc opinion.OpinionGiverFunc, paras ...*Parameters) *FPC {
 // in order to finalize an Opinion.
 type FPC struct {
 	events           vote.Events
-	opinionGiverFunc opinion.OpinionGiverFunc
+	opinionGiverFunc opinion.GiverFunc
 	// the lifo queue of newly enqueued items to vote on.
 	queue *list.List
 	// contains a set of currently queued items.
@@ -211,7 +211,7 @@ func (f *FPC) queryOpinions() ([]opinion.QueriedOpinions, error) {
 	// select a random subset of opinion givers to query.
 	// if the same opinion giver is selected multiple times, we query it only once
 	// but use its opinion N selected times.
-	opinionGiversToQuery := map[opinion.OpinionGiver]int{}
+	opinionGiversToQuery := map[opinion.Giver]int{}
 	for i := 0; i < f.paras.QuerySampleSize; i++ {
 		selected := opinionGivers[f.opinionGiverRng.Intn(len(opinionGivers))]
 		opinionGiversToQuery[selected]++
@@ -228,7 +228,7 @@ func (f *FPC) queryOpinions() ([]opinion.QueriedOpinions, error) {
 	var wg sync.WaitGroup
 	for opinionGiverToQuery, selectedCount := range opinionGiversToQuery {
 		wg.Add(1)
-		go func(opinionGiverToQuery opinion.OpinionGiver, selectedCount int) {
+		go func(opinionGiverToQuery opinion.Giver, selectedCount int) {
 			defer wg.Done()
 
 			queryCtx, cancel := context.WithTimeout(context.Background(), f.paras.QueryTimeout)

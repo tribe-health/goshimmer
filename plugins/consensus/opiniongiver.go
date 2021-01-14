@@ -52,9 +52,9 @@ func (o *OpinionGiver) ID() identity.ID {
 }
 
 // OpinionGiverFunc returns a slice of opinion givers.
-func OpinionGiverFunc() (givers []opinion.OpinionGiver, err error) {
+func OpinionGiverFunc() (givers []opinion.Giver, err error) {
 	opinionGiversMap := make(map[identity.ID]*OpinionGiver)
-	opinionGivers := make([]opinion.OpinionGiver, 0)
+	opinionGivers := make([]opinion.Giver, 0)
 
 	for _, v := range Registry().NodesView() {
 		opinionGiversMap[v.ID()] = &OpinionGiver{
