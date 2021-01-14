@@ -1,3 +1,35 @@
+# v0.3.5 - 2021-01-13
+* Fix consensus statement bug
+* Fix deadlock in RandomMap
+* Fix several shutdown related issues
+* Load old messages in visualizer
+* Fix wrong Tips count in visualizer
+* Fix dashboard typos
+* Improve integration tests
+* Improve network delay analysis
+* Update hive.go
+* Update JS dependencies
+* **Breaking**: bumps network and database versions
+# v0.3.4 - 2020-12-11
+* Revert Pebble to Badger.
+* **Breaking**: bumps network and database versions
+
+# v0.3.3 - 2020-12-10
+* Fix sync issue.
+* Fix pkger issue.
+* **Breaking**: bumps network and database versions
+
+# v0.3.2 - 2020-12-09
+* Switch from BadgerDB to Pebble.
+* Add FPC statements.
+* Add clock based time to message metadata.
+* Improve dashboard message live feed.
+* Improve spammer to evenly distribute issued messages within a minute.
+* Fix panic when writing on a closed channel in the dashboard web socket.
+* Upgrade Go to 1.15.5
+* Upgrade to latest hive.go
+* **Breaking**: bumps network and database versions
+
 # v0.3.1 - 2020-11-13
 * Refactor message structure according to the new Tangle RFC: 
     * add support for multiple parents
